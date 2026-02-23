@@ -1,5 +1,5 @@
 const CACHE = 'meal-planner-v1';
-const FILES = ['./', './meal-planner.html', './sw.js'];
+const FILES = ['./', './index.html', './sw.js'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)));
