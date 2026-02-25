@@ -768,6 +768,7 @@ function switchTab(name) {
   document.querySelectorAll('.tab-content').forEach(t => t.classList.add('hidden'));
   document.getElementById('tab-'+name).classList.remove('hidden');
   if (name==='planner') renderPlanner();
+  if (name==='directory') closeEditor();
 }
 
 /* =====================================================================
@@ -1471,10 +1472,10 @@ function setupIcons() {
     const cx = size / 2, cy = size / 2 - 4, r = size * 0.28;
     ctx.beginPath();
     ctx.moveTo(cx, cy + r * 1.05);
-    ctx.bezierCurveTo(cx - r * 0.1, cy + r * 0.7,  cx - r * 1.6, cy + r * 0.5, cx - r * 1.6, cy - r * 0.2);
-    ctx.bezierCurveTo(cx - r * 1.6, cy - r * 0.9,  cx - r * 0.8, cy - r * 1.1, cx,            cy - r * 0.5);
-    ctx.bezierCurveTo(cx + r * 0.8, cy - r * 1.1,  cx + r * 1.6, cy - r * 0.9, cx + r * 1.6, cy - r * 0.2);
-    ctx.bezierCurveTo(cx + r * 1.6, cy + r * 0.5,  cx + r * 0.1, cy + r * 0.7, cx,            cy + r * 1.05);
+    ctx.bezierCurveTo(cx - r * 0.1, cy + r * 0.7,  cx - r * 1.44, cy + r * 0.5, cx - r * 1.44, cy - r * 0.2);
+    ctx.bezierCurveTo(cx - r * 1.44, cy - r * 0.9,  cx - r * 0.72, cy - r * 1.1, cx,            cy - r * 0.5);
+    ctx.bezierCurveTo(cx + r * 0.72, cy - r * 1.1,  cx + r * 1.44, cy - r * 0.9, cx + r * 1.44, cy - r * 0.2);
+    ctx.bezierCurveTo(cx + r * 1.44, cy + r * 0.5,  cx + r * 0.1, cy + r * 0.7, cx,            cy + r * 1.05);
     ctx.fill();
 
     const url = c.toDataURL('image/png');
