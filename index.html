@@ -1135,6 +1135,8 @@ function generateList() {
   shopItems = Object.values(agg);
   addCat = null;
   globalAddOpen = false;
+  collapsedCats.clear();
+  autoHiddenCats.clear();
   renderShopList();
   shopStatus('Generated '+shopItems.length+' items from plan.');
 }
