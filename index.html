@@ -60,20 +60,34 @@
     }
     .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
     .tab-btn:hover { color: var(--accent); }
-    .data-btns { display: flex; gap: 4px; flex-shrink: 0; padding-left: 4px; }
-    .btn-data {
-      background: none; border: 1px solid var(--border); border-radius: 6px;
-      color: var(--text-light); cursor: pointer; padding: 5px 9px;
-      font-size: 12px; font-family: inherit; white-space: nowrap;
-      transition: background .15s, color .15s;
+    /* ---- Data tab ---- */
+    .data-tab-inner {
+      display: flex; flex-direction: column; align-items: center;
+      gap: 16px; padding: 32px 16px; overflow-y: auto; flex: 1;
     }
-    .btn-data:hover { background: var(--accent-light); color: var(--accent); border-color: var(--accent); }
-    @media (max-width: 480px) { .btn-data span { display: none; } }
+    .data-card {
+      width: 100%; max-width: 360px; text-align: center;
+      background: var(--panel); border: 1px solid var(--border);
+      border-radius: 10px; padding: 24px 20px;
+    }
+    .data-card h3 { font-size: 16px; margin-bottom: 4px; }
+    .data-card p { font-size: 13px; color: var(--text-light); margin-bottom: 14px; }
+    .cat-manage-row {
+      display: flex; align-items: center; gap: 6px;
+    }
+    .cat-manage-row select { flex: 1; }
+    .btn-icon {
+      background: none; border: 1px solid var(--border); border-radius: 6px;
+      cursor: pointer; padding: 6px 8px; font-size: 14px; line-height: 1;
+      color: var(--text-light); transition: background .15s, color .15s, border-color .15s;
+    }
+    .btn-icon:hover { background: var(--accent-light); color: var(--accent); border-color: var(--accent); }
+    .btn-icon.danger:hover { background: #fde8ea; color: var(--danger); border-color: var(--danger); }
 
     /* ---- Main / Tab Content ---- */
     main { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
     .tab-content { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
-    .tab-content.hidden { display: none !important; }
+    .tab-content.hidden, .hidden { display: none !important; }
 
     /* ---- Buttons ---- */
     .btn {
@@ -157,6 +171,8 @@
     .ing-header-row {
       display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px;
     }
+    .ing-browse { display: flex; gap: 6px; margin-bottom: 6px; }
+    .ing-browse select { flex: 1; }
     .ing-col-labels {
       display: grid;
       grid-template-columns: 1fr 68px 88px 128px 36px;
@@ -195,6 +211,7 @@
     }
     .planner-bar label { font-size: 13px; white-space: nowrap; }
     .planner-bar input[type="number"] { width: 58px; padding: 6px 8px; }
+    .planner-actions { display: flex; gap: 8px; margin-left: auto; }
     .planner-status { font-size: 12px; padding: 4px 14px; color: var(--accent); min-height: 20px; flex-shrink: 0; }
     .planner-grid-wrap { flex: 1; overflow: auto; padding: 8px 14px 16px; -webkit-overflow-scrolling: touch; }
     .planner-table { border-collapse: collapse; min-width: 100%; }
@@ -300,8 +317,6 @@
       .app-title { font-size: 13px; width: 100%; padding-bottom: 2px; }
       .tabs { width: 100%; order: 1; }
       .tab-btn { padding: 10px 8px; font-size: 12px; flex: 1; text-align: center; }
-      .data-btns { order: 2; width: 100%; justify-content: flex-end; padding: 4px 0 2px; }
-
       /* Directory: stack panels vertically */
       #tab-directory { flex-direction: column; }
       .dir-left {
@@ -337,19 +352,14 @@
       }
       .planner-bar label { font-size: 12px; }
       .planner-bar input[type="number"] { width: 52px; }
-      #btn-reset { margin-left: 0 !important; width: 100%; margin-top: 4px; }
+      .planner-actions { margin-left: 0; width: 100%; margin-top: 4px; }
 
       /* Planner table: better scroll hint */
       .planner-grid-wrap { padding: 8px 8px 16px; }
       .planner-table select { min-width: 130px; font-size: 13px; }
 
-      /* Shopping bar: wrap buttons */
-      .shopping-bar {
-        gap: 6px;
-        flex-wrap: wrap;
-      }
-      .shopping-bar .spacer { display: none; }
-      #btn-gen { width: 100%; }
+      /* Shopping bar */
+      .shopping-bar { gap: 6px; }
       .shopping-wrap { padding: 4px 10px 24px; }
 
       /* Bigger touch targets */
@@ -395,11 +405,8 @@
       <button class="tab-btn active" data-tab="directory">Edit Meals</button>
       <button class="tab-btn" data-tab="planner">Select Meals</button>
       <button class="tab-btn" data-tab="shopping">Shopping List</button>
+      <button class="tab-btn" data-tab="data">Data</button>
     </nav>
-    <div class="data-btns">
-      <button class="btn-data" id="btn-export" title="Export all data to a file">&#x2B06; Export</button>
-      <button class="btn-data" id="btn-import" title="Import data from a file">&#x2B07; Import</button>
-    </div>
   </header>
 
   <main>
@@ -431,6 +438,10 @@
             <div class="ing-header-row">
               <label class="field-label" style="margin:0">Ingredients</label>
               <button class="btn btn-primary btn-sm" id="btn-add-ing">+ Add</button>
+            </div>
+            <div class="ing-browse">
+              <select id="browse-cat"><option value="">Browse by category...</option></select>
+              <select id="browse-ing" disabled><option value="">Select ingredient...</option></select>
             </div>
             <div class="ing-col-labels">
               <span class="ing-col-label">Ingredient</span>
@@ -467,8 +478,10 @@
         <input type="number" id="p-slots" value="3" min="1" max="6">
         <button class="btn btn-primary btn-sm" id="btn-apply">Apply</button>
         <button class="btn btn-secondary btn-sm" id="btn-labels">Edit Labels</button>
-        <button class="btn btn-primary btn-sm" id="btn-gen-planner" style="margin-left:auto">Generate List</button>
-        <button class="btn btn-danger btn-sm" id="btn-reset">Reset Plan</button>
+        <div class="planner-actions">
+          <button class="btn btn-primary btn-sm" id="btn-gen-planner">Generate List</button>
+          <button class="btn btn-danger btn-sm" id="btn-reset">Reset Plan</button>
+        </div>
       </div>
       <div class="planner-status" id="planner-status"></div>
       <div class="planner-grid-wrap">
@@ -485,14 +498,41 @@
         <button class="btn btn-primary" id="btn-gen">Generate from Plan</button>
         <div class="spacer"></div>
         <button class="btn btn-secondary btn-sm" id="btn-copy">Copy</button>
-        <button class="btn btn-secondary btn-sm" id="btn-txt">Save Text</button>
-        <button class="btn btn-primary btn-sm" id="btn-img">Save Image</button>
       </div>
       <div class="shopping-status" id="shop-status"></div>
       <div class="shopping-wrap" id="shop-wrap">
         <div class="shopping-placeholder">
           Click &ldquo;Generate from Plan&rdquo; to create your shopping list.<br>
           <small style="font-size:12px;color:#bbb">Or add items manually below.</small>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== DATA ===== -->
+    <div id="tab-data" class="tab-content hidden">
+      <div class="data-tab-inner">
+        <div class="data-card">
+          <h3>Save meal plan data</h3>
+          <p>To share with another device</p>
+          <button class="btn btn-primary" id="btn-export-data">Export Data</button>
+        </div>
+        <div class="data-card">
+          <h3>Import meal plan data</h3>
+          <p>To update from another device</p>
+          <button class="btn btn-primary" id="btn-import-data">Import Data</button>
+        </div>
+        <div class="data-card" style="text-align:left;">
+          <h3 style="text-align:center">Manage Categories</h3>
+          <p style="text-align:center">Select a category to rename or remove it</p>
+          <div class="cat-manage-row">
+            <select id="cat-select"></select>
+            <button class="btn-icon" id="btn-edit-cat" title="Rename category">&#x270E;</button>
+            <button class="btn-icon danger" id="btn-del-cat" title="Remove category">&#x2715;</button>
+          </div>
+          <div style="display:flex;gap:6px;margin-top:10px;">
+            <input type="text" id="new-cat-input" placeholder="New category name...">
+            <button class="btn btn-primary btn-sm" id="btn-add-cat">Add</button>
+          </div>
         </div>
       </div>
     </div>
@@ -576,9 +616,10 @@ function catForIng(name) {
 /* =====================================================================
    STORAGE
 ===================================================================== */
-const MEALS_KEY = 'mplanner_meals';
-const PLAN_KEY  = 'mplanner_plan';
-const ORDER_KEY = 'mplanner_catorder';
+const MEALS_KEY   = 'mplanner_meals';
+const PLAN_KEY    = 'mplanner_plan';
+const ORDER_KEY   = 'mplanner_catorder';
+const USER_CATS_KEY = 'mplanner_usercats';
 
 const SEED_MEALS = [
   {id:'8cf58ee1-bbe7-4623-a869-968f1869fd80',name:'Pizza',
@@ -601,6 +642,14 @@ function loadPlan() {
 }
 function savePlan(p) { localStorage.setItem(PLAN_KEY, JSON.stringify(p)); }
 
+function loadUserCats() {
+  try { const r=localStorage.getItem(USER_CATS_KEY); if(r) return JSON.parse(r); } catch(e){}
+  return null;
+}
+function saveUserCats(c) { localStorage.setItem(USER_CATS_KEY, JSON.stringify(c)); }
+let userCats = null; // null = use defaults, array = user-managed list
+function allCategories() { return userCats !== null ? [...userCats] : [...CATEGORIES]; }
+
 function uid() {
   if (crypto.randomUUID) return crypto.randomUUID();
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
@@ -617,6 +666,8 @@ let selId = null;        // selected meal id
 let shopItems = [];      // current shopping list items
 let addCat = null;       // active inline-add category
 let shopCatOrder = [];   // persistent user-defined category order
+const collapsedCats = new Set(); // collapsed category groups in shopping list
+const autoHiddenCats = new Set(); // categories already auto-hidden after all checked
 
 /* =====================================================================
    AUTOCOMPLETE
@@ -663,7 +714,7 @@ function makeAC(parent, { suggestions, placeholder, value, inputClass, onSelect 
   inp.addEventListener('input', () => {
     const q = inp.value.toLowerCase();
     if (!q) { hide(); return; }
-    show(suggestions.filter(s => s.toLowerCase().includes(q)).slice(0,30));
+    show(suggestions.filter(s => s.toLowerCase().startsWith(q)).slice(0,30));
   });
   inp.addEventListener('keydown', e => {
     if (dd.style.display==='none') return;
@@ -674,8 +725,9 @@ function makeAC(parent, { suggestions, placeholder, value, inputClass, onSelect 
   });
   inp.addEventListener('blur', () => setTimeout(hide, 160));
   inp.addEventListener('focus', () => {
+    inp.select();
     const q = inp.value.toLowerCase();
-    if (q) show(suggestions.filter(s => s.toLowerCase().includes(q)).slice(0,30));
+    if (q) show(suggestions.filter(s => s.toLowerCase().startsWith(q)).slice(0,30));
   });
 
   parent.appendChild(wrap);
@@ -792,8 +844,41 @@ function showEditor(meal) {
 function closeEditor() {
   document.getElementById('meal-editor').classList.add('hidden');
   selId = null;
+  isNewMeal = false;
   renderMealList();
   document.getElementById('tab-directory').classList.remove('editing');
+}
+
+function initBrowseDropdowns() {
+  const catSel = document.getElementById('browse-cat');
+  const ingSel = document.getElementById('browse-ing');
+
+  // Populate category dropdown from ING_BY_CAT keys
+  for (const cat of Object.keys(ING_BY_CAT)) {
+    const opt = document.createElement('option'); opt.value = cat; opt.textContent = cat;
+    catSel.appendChild(opt);
+  }
+
+  catSel.addEventListener('change', () => {
+    ingSel.innerHTML = '<option value="">Select ingredient...</option>';
+    const cat = catSel.value;
+    if (!cat) { ingSel.disabled = true; return; }
+    const items = (ING_BY_CAT[cat] || []).slice().sort();
+    for (const name of items) {
+      const opt = document.createElement('option'); opt.value = name; opt.textContent = name;
+      ingSel.appendChild(opt);
+    }
+    ingSel.disabled = false;
+  });
+
+  ingSel.addEventListener('change', () => {
+    const name = ingSel.value;
+    if (!name) return;
+    const cat = catSel.value;
+    addIngRow({ name, quantity:'', unit:'', category: cat });
+    // Reset dropdowns
+    ingSel.value = '';
+  });
 }
 
 function addIngRow(data={}) {
@@ -820,7 +905,7 @@ function addIngRow(data={}) {
   const unitAc = makeAC(row, { suggestions: COMMON_UNITS, placeholder:'Unit', value:data.unit||'', inputClass:'ing-unit' });
 
   // Category autocomplete
-  catAc = makeAC(row, { suggestions: CATEGORIES, placeholder:'Category', value:data.category||'', inputClass:'ing-cat' });
+  catAc = makeAC(row, { suggestions: allCategories(), placeholder:'Category', value:data.category||'', inputClass:'ing-cat' });
 
   // Remove
   const rm = document.createElement('button');
@@ -850,21 +935,49 @@ function collectEditor() {
 /* =====================================================================
    MEAL DIRECTORY — actions
 ===================================================================== */
+let isNewMeal = false;
+
 function newMeal() {
-  const m = {id:uid(), name:'', ingredients:[], notes:''};
-  meals.push(m); saveMeals(meals);
-  selId = m.id; showEditor(m); renderMealList();
+  isNewMeal = true;
+  selId = null;
+  showEditor({name:'', ingredients:[], notes:''});
+  renderMealList();
   document.getElementById('tab-directory').classList.add('editing');
   document.getElementById('editor-name').focus();
+}
+
+function absorbNewCats(data) {
+  const known = allCategories().map(c=>c.toLowerCase());
+  let changed = false;
+  for (const ing of data.ingredients||[]) {
+    const cat = (ing.category||'').trim();
+    if (cat && !known.includes(cat.toLowerCase())) {
+      ensureUserCats();
+      userCats.push(cat);
+      known.push(cat.toLowerCase());
+      changed = true;
+    }
+  }
+  if (changed) { saveUserCats(userCats); renderCatManager(); }
 }
 
 function saveMeal() {
   const data = collectEditor();
   if (!data) { setStatus('dir-status','Please enter a meal name.',true); return; }
-  const idx = meals.findIndex(m=>m.id===selId);
-  if (idx>=0) { meals[idx]={...meals[idx],...data}; saveMeals(meals); }
-  renderMealList();
-  setStatus('dir-status','Meal saved!');
+  absorbNewCats(data);
+  if (isNewMeal) {
+    const m = {id:uid(), ...data};
+    meals.push(m); saveMeals(meals);
+    selId = m.id;
+    isNewMeal = false;
+    renderMealList();
+    setStatus('dir-status','Meal saved!');
+  } else {
+    const idx = meals.findIndex(m=>m.id===selId);
+    if (idx>=0) { meals[idx]={...meals[idx],...data}; saveMeals(meals); }
+    renderMealList();
+    setStatus('dir-status','Meal saved!');
+  }
 }
 
 function dupMeal() {
@@ -878,6 +991,7 @@ function dupMeal() {
 }
 
 function delMeal() {
+  if (isNewMeal) { closeEditor(); return; }
   if (!selId) return;
   const meal = meals.find(m=>m.id===selId);
   modal({
@@ -1026,7 +1140,7 @@ function generateList() {
 
 function loadCatOrder() {
   try { const r=localStorage.getItem(ORDER_KEY); if(r) return JSON.parse(r); } catch(e){}
-  return [...CATEGORIES];
+  return [...allCategories()];
 }
 function saveCatOrder(o) { localStorage.setItem(ORDER_KEY, JSON.stringify(o)); }
 
@@ -1099,11 +1213,16 @@ function renderShopList() {
       left.appendChild(up); left.appendChild(dn);
     }
 
+    const toggleBtn=document.createElement('button'); toggleBtn.className='btn btn-secondary btn-xs';
+    const collapsed=collapsedCats.has(cat);
+    toggleBtn.textContent=collapsed?'Show':'Hide';
+    toggleBtn.addEventListener('click',()=>{ if(collapsedCats.has(cat)){ collapsedCats.delete(cat); autoHiddenCats.delete(cat); } else collapsedCats.add(cat); renderShopList(); });
+    left.appendChild(toggleBtn);
     const addBtn=document.createElement('button'); addBtn.className='btn btn-primary btn-xs'; addBtn.textContent='+ Add';
-    addBtn.addEventListener('click',()=>{ addCat=cat; renderShopList(); setTimeout(()=>{ const i=wrap.querySelector('.inline-add input[type="text"]'); if(i) i.focus(); },60); });
+    addBtn.addEventListener('click',()=>{ addCat=cat; collapsedCats.delete(cat); renderShopList(); setTimeout(()=>{ const i=wrap.querySelector('.inline-add input[type="text"]'); if(i) i.focus(); },60); });
     hdr.appendChild(left); hdr.appendChild(addBtn); wrap.appendChild(hdr);
 
-    for (const item of catItems) wrap.appendChild(makeShopItem(item));
+    if (!collapsed) { for (const item of catItems) wrap.appendChild(makeShopItem(item)); }
 
     // Inline add row
     if (cat===addCat) {
@@ -1148,7 +1267,7 @@ function appendGlobalAdd(wrap) {
 
     // Category autocomplete — built-in categories + any already in the list
     const existingCats = [...new Set(shopItems.map(i => i.category||'Other'))];
-    const catSugs = [...new Set([...CATEGORIES, ...existingCats])];
+    const catSugs = [...new Set([...allCategories(), ...existingCats])];
     const catAc = makeAC(row, { suggestions: catSugs, placeholder: 'Category (e.g. Other)', value: 'Other' });
     catAc.element.style.flex = '0 0 160px';
 
@@ -1176,14 +1295,28 @@ function appendGlobalAdd(wrap) {
   wrap.appendChild(div);
 }
 
+function checkAutoHide(cat) {
+  const catItems=shopItems.filter(i=>(i.category||'Other')===cat);
+  if (catItems.length && catItems.every(i=>i.checked)) {
+    if (!autoHiddenCats.has(cat)) {
+      autoHiddenCats.add(cat);
+      collapsedCats.add(cat);
+      renderShopList();
+    }
+  } else {
+    autoHiddenCats.delete(cat);
+  }
+}
+
 function makeShopItem(item) {
   const row=document.createElement('div'); row.className='shop-item';
+  const cat=item.category||'Other';
 
   const cb=document.createElement('input'); cb.type='checkbox'; cb.checked=item.checked||false;
   const name=document.createElement('span'); name.className='shop-name'+(item.checked?' checked':'');
   name.textContent=item.name;
 
-  const toggle=()=>{ item.checked=cb.checked; name.classList.toggle('checked',item.checked); };
+  const toggle=()=>{ item.checked=cb.checked; name.classList.toggle('checked',item.checked); checkAutoHide(cat); };
   cb.addEventListener('change',toggle);
   name.addEventListener('click',()=>{ cb.checked=!cb.checked; toggle(); });
 
@@ -1353,13 +1486,87 @@ function setupIcons() {
 /* =====================================================================
    EXPORT / IMPORT
 ===================================================================== */
+function ensureUserCats() {
+  if (userCats === null) { userCats = [...CATEGORIES]; saveUserCats(userCats); }
+}
+
+function renderCatManager() {
+  const sel = document.getElementById('cat-select');
+  const prev = sel.value;
+  sel.innerHTML = '';
+  const cats = allCategories();
+  for (const cat of cats) {
+    const opt = document.createElement('option'); opt.value = cat; opt.textContent = cat;
+    sel.appendChild(opt);
+  }
+  if (prev && sel.querySelector('option[value="'+CSS.escape(prev)+'"]')) sel.value = prev;
+}
+
+function deleteCat() {
+  const name = document.getElementById('cat-select').value;
+  if (!name) return;
+  modal({
+    title: 'Delete Category?',
+    body: '"' + name + '" will be removed from the category list.',
+    okText: 'Delete',
+    okClass: 'btn-danger',
+    onOk: () => {
+      ensureUserCats();
+      userCats = userCats.filter(c => c !== name);
+      saveUserCats(userCats);
+      renderCatManager();
+    }
+  });
+}
+
+function editCat() {
+  const name = document.getElementById('cat-select').value;
+  if (!name) return;
+  const inp = document.createElement('input'); inp.type = 'text'; inp.value = name;
+  inp.style.cssText = 'width:100%;margin-top:6px;';
+  modal({
+    title: 'Rename Category',
+    body: 'Enter a new name for "' + name + '":',
+    extra: inp,
+    okText: 'Rename',
+    okClass: 'btn-primary',
+    onOk: () => {
+      const newName = inp.value.trim();
+      if (!newName || newName === name) return;
+      if (allCategories().some(c => c.toLowerCase() === newName.toLowerCase())) return;
+      ensureUserCats();
+      const idx = userCats.indexOf(name);
+      if (idx >= 0) userCats[idx] = newName;
+      saveUserCats(userCats);
+      renderCatManager();
+    }
+  });
+  setTimeout(() => { inp.focus(); inp.select(); }, 50);
+}
+
+function addCustomCat() {
+  const inp = document.getElementById('new-cat-input');
+  const name = inp.value.trim();
+  if (!name) return;
+  if (allCategories().some(c => c.toLowerCase() === name.toLowerCase())) {
+    inp.value = '';
+    return;
+  }
+  ensureUserCats();
+  userCats.push(name);
+  saveUserCats(userCats);
+  renderCatManager();
+  inp.value = '';
+}
+
 function exportData() {
   const data = {
     version: 1,
     exported: new Date().toISOString(),
     meals:    JSON.parse(localStorage.getItem(MEALS_KEY)  || '{"meals":[]}'),
     plan:     JSON.parse(localStorage.getItem(PLAN_KEY)   || '{}'),
-    catOrder: JSON.parse(localStorage.getItem(ORDER_KEY)  || '[]'),
+    catOrder:  JSON.parse(localStorage.getItem(ORDER_KEY)    || '[]'),
+    userCats:  JSON.parse(localStorage.getItem(USER_CATS_KEY) || 'null'),
   };
   const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
   const a = document.createElement('a');
@@ -1386,11 +1593,14 @@ function importData() {
           onOk: () => {
             if (data.meals)    localStorage.setItem(MEALS_KEY,  JSON.stringify(data.meals));
             if (data.plan)     localStorage.setItem(PLAN_KEY,   JSON.stringify(data.plan));
-            if (data.catOrder) localStorage.setItem(ORDER_KEY,  JSON.stringify(data.catOrder));
+            if (data.catOrder)   localStorage.setItem(ORDER_KEY,       JSON.stringify(data.catOrder));
+            if (data.userCats != null) localStorage.setItem(USER_CATS_KEY, JSON.stringify(data.userCats));
             // Reload state
             meals = loadMeals();
             plan  = loadPlan();
             shopCatOrder = loadCatOrder();
+            userCats = loadUserCats();
+            renderCatManager();
             shopItems = []; addCat = null; globalAddOpen = false;
             renderMealList();
             // Refresh planner if active
@@ -1427,6 +1637,7 @@ function init() {
   document.getElementById('btn-new-meal').addEventListener('click', newMeal);
   document.getElementById('meal-search').addEventListener('input', renderMealList);
   document.getElementById('btn-add-ing').addEventListener('click', ()=>addIngRow());
+  initBrowseDropdowns();
   document.getElementById('btn-save-meal').addEventListener('click', saveMeal);
   document.getElementById('btn-dup-meal').addEventListener('click', dupMeal);
   document.getElementById('btn-del-meal').addEventListener('click', delMeal);
@@ -1438,15 +1649,21 @@ function init() {
   document.getElementById('btn-reset').addEventListener('click', resetPlan);
 
   // Export / Import
-  document.getElementById('btn-export').addEventListener('click', exportData);
-  document.getElementById('btn-import').addEventListener('click', importData);
+  document.getElementById('btn-export-data').addEventListener('click', exportData);
+  document.getElementById('btn-import-data').addEventListener('click', importData);
+
+  // Custom categories
+  userCats = loadUserCats();
+  document.getElementById('btn-add-cat').addEventListener('click', addCustomCat);
+  document.getElementById('new-cat-input').addEventListener('keydown', e=>{ if(e.key==='Enter') addCustomCat(); });
+  document.getElementById('btn-del-cat').addEventListener('click', deleteCat);
+  document.getElementById('btn-edit-cat').addEventListener('click', editCat);
+  renderCatManager();
 
   // Shopping
   document.getElementById('btn-gen-planner').addEventListener('click', () => { generateList(); switchTab('shopping'); });
   document.getElementById('btn-gen').addEventListener('click', generateList);
   document.getElementById('btn-copy').addEventListener('click', copyList);
-  document.getElementById('btn-txt').addEventListener('click', saveTxt);
-  document.getElementById('btn-img').addEventListener('click', saveImg);
 
   renderMealList();
 }
