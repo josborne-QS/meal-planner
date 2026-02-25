@@ -477,7 +477,7 @@
         <label>Meals/day:</label>
         <input type="number" id="p-slots" value="3" min="1" max="6">
         <button class="btn btn-primary btn-sm" id="btn-apply">Apply</button>
-        <button class="btn btn-secondary btn-sm" id="btn-labels">Edit Labels</button>
+        <button class="btn-icon" id="btn-labels" title="Edit Labels">&#x270E;</button>
         <div class="planner-actions">
           <button class="btn btn-primary btn-sm" id="btn-gen-planner">Generate List</button>
           <button class="btn btn-danger btn-sm" id="btn-reset">Reset Plan</button>
@@ -1626,6 +1626,14 @@ function init() {
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js').catch(() => {});
   }
+
+  // Scroll focused inputs into view above mobile keyboard
+  document.addEventListener('focusin', e => {
+    const el = e.target;
+    if (el.matches('input, select, textarea')) {
+      setTimeout(() => el.scrollIntoView({ block: 'center', behavior: 'smooth' }), 300);
+    }
+  });
   meals = loadMeals();
   plan  = loadPlan();
   shopCatOrder = loadCatOrder();
