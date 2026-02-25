@@ -297,19 +297,34 @@
        MOBILE — ≤ 640px
     ================================================================ */
     @media (max-width: 640px) {
-      .app-title { font-size: 13px; }
-      .tab-btn { padding: 12px 10px; font-size: 12px; }
+      /* Header: wrap into two rows */
+      header {
+        flex-wrap: wrap;
+        padding: 6px 10px;
+        gap: 2px;
+      }
+      .app-title { font-size: 13px; width: 100%; padding-bottom: 2px; }
+      .tabs { width: 100%; order: 1; }
+      .tab-btn { padding: 10px 8px; font-size: 12px; flex: 1; text-align: center; }
+      .data-btns { order: 2; width: 100%; justify-content: flex-end; padding: 4px 0 2px; }
 
       /* Directory: stack panels vertically */
       #tab-directory { flex-direction: column; }
-      .dir-left { width: 100%; min-width: unset; border-right: none; border-bottom: 1px solid var(--border); }
+      .dir-left {
+        width: 100%; min-width: unset;
+        border-right: none; border-bottom: 1px solid var(--border);
+        max-height: 45vh;
+      }
 
       /* Mobile editing mode: hide list, show editor */
       #tab-directory.editing .dir-left { display: none; }
       #tab-directory.editing .dir-right { display: flex; flex-direction: column; }
       #tab-directory.editing .back-btn { display: flex; }
 
-      /* Ingredient rows: 3-column grid on mobile */
+      /* Editor panel: full-width padding */
+      .meal-editor { padding: 12px 14px 24px; max-width: 100%; }
+
+      /* Ingredient rows: 2-column grid on mobile */
       .ing-col-labels { display: none; }
       .ing-row {
         grid-template-columns: 1fr 1fr 36px;
@@ -321,9 +336,52 @@
       .ing-row .ac-wrap.ing-cat { grid-column: 1 / 3; grid-row: 3; }
       .ing-row .ing-remove      { grid-column: 3;     grid-row: 1 / 4; align-self: center; }
 
-      .planner-bar { gap: 6px; }
-      .shopping-bar { gap: 6px; }
+      /* Planner bar: wrap controls */
+      .planner-bar {
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+      .planner-bar label { font-size: 12px; }
+      .planner-bar input[type="number"] { width: 52px; }
+      #btn-reset { margin-left: 0 !important; width: 100%; margin-top: 4px; }
+
+      /* Planner table: better scroll hint */
+      .planner-grid-wrap { padding: 8px 8px 16px; }
+      .planner-table select { min-width: 130px; font-size: 13px; }
+
+      /* Shopping bar: wrap buttons */
+      .shopping-bar {
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+      .shopping-bar .spacer { display: none; }
+      #btn-gen { width: 100%; }
+      .shopping-wrap { padding: 4px 10px 24px; }
+
+      /* Bigger touch targets */
+      .btn { min-height: 40px; padding: 10px 14px; }
+      .btn-sm { min-height: 36px; padding: 8px 12px; }
+      .btn-xs { min-height: 32px; padding: 6px 10px; }
+      .shop-item { padding: 10px 12px; }
+      .shop-item input[type="checkbox"] { width: 22px; height: 22px; min-width: 22px; }
+      .meal-list-item { padding: 12px 14px; }
+
       .editor-actions { gap: 6px; }
+      .editor-actions .btn { flex: 1; min-width: 0; }
+
+      /* Modal: full width on mobile */
+      .modal { max-width: 100%; padding: 18px; }
+    }
+
+    /* ---- Extra small screens (< 380px) ---- */
+    @media (max-width: 380px) {
+      .tab-btn { padding: 9px 5px; font-size: 11px; }
+      .btn { font-size: 13px; }
+      .btn-sm { font-size: 12px; }
+      .planner-table th { padding: 6px 4px; font-size: 12px; }
+      .planner-table td { padding: 4px 3px; }
+      .planner-table select { min-width: 110px; font-size: 12px; }
+      .day-cell { font-size: 12px; padding: 4px 6px !important; }
     }
   </style>
 </head>
