@@ -142,12 +142,6 @@
 
     /* Editor panel */
     .dir-right { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; position: relative; }
-    .editor-placeholder {
-      position: absolute; top: 50%; left: 50%;
-      transform: translate(-50%, -50%);
-      color: var(--text-muted); font-size: 15px;
-      text-align: center; pointer-events: none; width: 80%;
-    }
     .back-btn {
       display: none;
       align-items: center; gap: 4px;
@@ -210,7 +204,7 @@
     }
     .planner-table td { padding: 5px 6px; vertical-align: middle; }
     .planner-table tr:nth-child(even) td { background: var(--row); }
-    .day-cell { font-size: 13px; font-weight: 500; white-space: nowrap; padding: 6px 10px !important; }
+    .day-cell { font-size: 13px; font-weight: 500; white-space: nowrap; padding: 6px 4px !important; width: 1%; text-align: center; }
     .planner-table select { min-width: 155px; font-size: 13px; padding: 6px 8px; }
 
     /* ================================================================
@@ -383,6 +377,13 @@
       .planner-table select { min-width: 110px; font-size: 12px; }
       .day-cell { font-size: 12px; padding: 4px 6px !important; }
     }
+    /* ---- Landscape safe areas (notch / camera cutout) ---- */
+    @media (orientation: landscape) {
+      #app {
+        padding-left: env(safe-area-inset-left);
+        padding-right: env(safe-area-inset-right);
+      }
+    }
   </style>
 </head>
 <body>
@@ -391,8 +392,8 @@
   <header>
     <span class="app-title">&#x2764;&#xFE0F; Meal Planner</span>
     <nav class="tabs">
-      <button class="tab-btn active" data-tab="directory">Meal Directory</button>
-      <button class="tab-btn" data-tab="planner">Meal Planner</button>
+      <button class="tab-btn active" data-tab="directory">Edit Meals</button>
+      <button class="tab-btn" data-tab="planner">Select Meals</button>
       <button class="tab-btn" data-tab="shopping">Shopping List</button>
     </nav>
     <div class="data-btns">
@@ -419,7 +420,6 @@
 
       <div class="dir-right" id="dir-right">
         <button class="back-btn" id="back-btn">&#x2190; All Meals</button>
-        <div class="editor-placeholder" id="editor-placeholder">Select or create a meal to get started.</div>
         <div class="meal-editor hidden" id="meal-editor">
 
           <div class="field-group">
@@ -467,7 +467,8 @@
         <input type="number" id="p-slots" value="3" min="1" max="6">
         <button class="btn btn-primary btn-sm" id="btn-apply">Apply</button>
         <button class="btn btn-secondary btn-sm" id="btn-labels">Edit Labels</button>
-        <button class="btn btn-danger btn-sm" id="btn-reset" style="margin-left:auto">Reset Plan</button>
+        <button class="btn btn-primary btn-sm" id="btn-gen-planner" style="margin-left:auto">Generate List</button>
+        <button class="btn btn-danger btn-sm" id="btn-reset">Reset Plan</button>
       </div>
       <div class="planner-status" id="planner-status"></div>
       <div class="planner-grid-wrap">
@@ -779,7 +780,6 @@ function openMeal(id) {
 }
 
 function showEditor(meal) {
-  document.getElementById('editor-placeholder').classList.add('hidden');
   document.getElementById('meal-editor').classList.remove('hidden');
   document.getElementById('editor-name').value  = meal.name  || '';
   document.getElementById('editor-notes').value = meal.notes || '';
@@ -790,7 +790,6 @@ function showEditor(meal) {
 }
 
 function closeEditor() {
-  document.getElementById('editor-placeholder').classList.remove('hidden');
   document.getElementById('meal-editor').classList.add('hidden');
   selId = null;
   renderMealList();
@@ -908,7 +907,7 @@ function renderPlanner() {
   // Header
   const thead = document.getElementById('p-head'); thead.innerHTML='';
   const hrow = document.createElement('tr');
-  const th0 = document.createElement('th'); th0.textContent='Day'; hrow.appendChild(th0);
+  const th0 = document.createElement('th'); th0.textContent='#'; hrow.appendChild(th0);
   for (const lbl of labels) {
     const th = document.createElement('th'); th.textContent=lbl; hrow.appendChild(th);
   }
@@ -918,7 +917,7 @@ function renderPlanner() {
   const tbody = document.getElementById('p-body'); tbody.innerHTML='';
   for (let day=1; day<=numDays; day++) {
     const tr = document.createElement('tr');
-    const td0 = document.createElement('td'); td0.className='day-cell'; td0.textContent='Day '+day; tr.appendChild(td0);
+    const td0 = document.createElement('td'); td0.className='day-cell'; td0.textContent=day; tr.appendChild(td0);
     const dayPlan = (plan.plan||{})[String(day)]||{};
     for (const lbl of labels) {
       const td = document.createElement('td');
@@ -1443,6 +1442,7 @@ function init() {
   document.getElementById('btn-import').addEventListener('click', importData);
 
   // Shopping
+  document.getElementById('btn-gen-planner').addEventListener('click', () => { generateList(); switchTab('shopping'); });
   document.getElementById('btn-gen').addEventListener('click', generateList);
   document.getElementById('btn-copy').addEventListener('click', copyList);
   document.getElementById('btn-txt').addEventListener('click', saveTxt);
