@@ -181,19 +181,22 @@
       display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px;
     }
     .ing-browse { display: flex; gap: 6px; margin-bottom: 6px; }
-    .ing-browse select { flex: 1; }
-    .ing-col-labels {
-      display: grid;
-      grid-template-columns: 1fr 68px 88px 128px 36px;
-      gap: 4px; padding: 0 2px; margin-bottom: 2px;
-    }
+    .ing-browse select { flex: 1; min-width: 0; }
+    #browse-cat { flex: 1.2; }
+    .ing-col-labels { display: none; }
     .ing-col-label { font-size: 11px; color: var(--text-light); font-weight: 500; padding-left: 2px; }
     .ing-row {
       display: grid;
-      grid-template-columns: 1fr 68px 88px 128px 36px;
+      grid-template-columns: 1fr 36px;
+      grid-template-rows: auto auto;
       gap: 4px; align-items: start;
       background: #f0f0f0; border-radius: 6px;
       padding: 6px 4px; margin-bottom: 4px;
+    }
+    .ing-row .ing-remove { grid-column: 2; grid-row: 1 / 3; align-self: center; }
+    .ing-row-bottom {
+      grid-column: 1; grid-row: 2;
+      display: grid; grid-template-columns: 1fr 1fr 2fr; gap: 4px;
     }
     .ing-row input { background: white; }
     .ing-remove {
@@ -344,17 +347,8 @@
       /* Editor panel: full-width padding */
       .meal-editor { padding: 12px 14px 24px; max-width: 100%; }
 
-      /* Ingredient rows: 2-column grid on mobile */
+      /* Ingredient rows: mobile */
       .ing-col-labels { display: none; }
-      .ing-row {
-        grid-template-columns: 1fr 1fr 36px;
-        grid-template-rows: auto auto auto;
-      }
-      .ing-row .ac-wrap.ing-name { grid-column: 1 / 3; grid-row: 1; }
-      .ing-row .ing-qty         { grid-column: 1;     grid-row: 2; }
-      .ing-row .ac-wrap.ing-unit{ grid-column: 2;     grid-row: 2; }
-      .ing-row .ac-wrap.ing-cat { grid-column: 1 / 3; grid-row: 3; }
-      .ing-row .ing-remove      { grid-column: 3;     grid-row: 1 / 4; align-self: center; }
 
       /* Planner bar: wrap controls */
       .planner-bar {
@@ -1145,16 +1139,21 @@ function addIngRow(data={}) {
     onSelect: val => { const c=catForIng(val); if(c&&catAc) catAc.set(c); }
   });
 
+  // Bottom row: Qty (1/4), Unit (1/4), Category (1/2)
+  const bottom = document.createElement('div'); bottom.className='ing-row-bottom';
+
   // Qty
   const qty = document.createElement('input');
   qty.type='text'; qty.placeholder='Qty'; qty.value=data.quantity||''; qty.className='ing-qty';
-  row.appendChild(qty);
+  bottom.appendChild(qty);
 
   // Unit autocomplete
-  const unitAc = makeAC(row, { suggestions: COMMON_UNITS, placeholder:'Unit', value:data.unit||'', inputClass:'ing-unit' });
+  const unitAc = makeAC(bottom, { suggestions: COMMON_UNITS, placeholder:'Unit', value:data.unit||'', inputClass:'ing-unit' });
 
   // Category autocomplete
-  catAc = makeAC(row, { suggestions: allCategories(), placeholder:'Category', value:data.category||'', inputClass:'ing-cat' });
+  catAc = makeAC(bottom, { suggestions: allCategories(), placeholder:'Category', value:data.category||'', inputClass:'ing-cat', showAll: true });
+
+  row.appendChild(bottom);
 
   // Remove
   const rm = document.createElement('button');
@@ -1375,10 +1374,10 @@ function resetPlan() {
 ===================================================================== */
 function getPlannedIds() {
   const p = loadPlan();
-  const ids = new Set();
+  const ids = [];
   for (const slots of Object.values(p.plan||{}))
-    if (typeof slots==='object') for (const id of Object.values(slots)) if (id) ids.add(id);
-  return [...ids];
+    if (typeof slots==='object') for (const id of Object.values(slots)) if (id) ids.push(id);
+  return ids;
 }
 
 function generateList() {
