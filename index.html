@@ -531,7 +531,7 @@
       <div class="data-tab-inner">
         <div class="data-card">
           <h3>Save meal plan data</h3>
-          <p>To share with another device</p>
+          <p>Export before adding to home screen or to share with another device</p>
           <button class="btn btn-primary" id="btn-export-data">Export Data</button>
         </div>
         <div class="data-card">
@@ -574,7 +574,7 @@ const COMMON_UNITS = [
 ];
 const ING_BY_CAT = {
   'Produce':['apple','apricot','artichoke','arugula','asparagus','avocado','banana','basil',
-    'beet','bell pepper','blackberries','blueberries','bok choy','broccoli','brussels sprouts',
+    'beet','bell pepper','blackberries','blueberries','bok choy','broccoli','brussel sprouts',
     'butternut squash','cabbage','carrot','cauliflower','celery','cherry tomatoes','cilantro',
     'corn','cucumber','dill','eggplant','garlic','ginger','grapes','green beans','green onion',
     'jalapeño','kale','leek','lemon','lettuce','lime','mango','mint','mushrooms','nectarine',
@@ -920,12 +920,20 @@ function shopStatus(msg, err=false) {
    TABS
 ===================================================================== */
 function switchTab(name) {
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab===name));
-  document.querySelectorAll('.tab-content').forEach(t => t.classList.add('hidden'));
-  document.getElementById('tab-'+name).classList.remove('hidden');
-  if (name==='planner') renderPlanner();
-  if (name==='directory') closeEditor();
-  updateUndoRedoBtns();
+  const currentTab = activeTab();
+  const doSwitch = () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab===name));
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.add('hidden'));
+    document.getElementById('tab-'+name).classList.remove('hidden');
+    if (name==='planner') renderPlanner();
+    if (name==='directory') closeEditor();
+    updateUndoRedoBtns();
+  };
+  if (currentTab === 'directory' && name !== 'directory' && isEditorDirty()) {
+    guardEditorExit(() => { closeEditor(); doSwitch(); });
+  } else {
+    doSwitch();
+  }
 }
 
 /* =====================================================================
@@ -981,7 +989,7 @@ function renderMealList() {
     if (lastGenMealIds.has(meal.id)) {
       const tag = document.createElement('span');
       tag.className = 'meal-tag-planned';
-      tag.textContent = 'In List';
+      tag.textContent = 'Used Recently';
       item.appendChild(tag);
     }
     item.addEventListener('click', ()=>openMeal(meal.id));
@@ -989,12 +997,49 @@ function renderMealList() {
   }
 }
 
+let editorSnapshot = null; // JSON string of editor state when opened
+
+function editorStateString() {
+  const data = collectEditor();
+  return JSON.stringify(data || {name:'',ingredients:[],notes:''});
+}
+
+function isEditorDirty() {
+  if (!editorSnapshot) return false;
+  if (document.getElementById('meal-editor').classList.contains('hidden')) return false;
+  return editorStateString() !== editorSnapshot;
+}
+
+function guardEditorExit(onDiscard) {
+  if (!isEditorDirty()) { onDiscard(); return; }
+  modal({
+    title: 'Unsaved Changes',
+    body: 'You have unsaved changes. Save before leaving?',
+    okText: 'Save & Leave', okClass: 'btn-primary',
+    onOk: () => { saveMeal(); onDiscard(); }
+  });
+  // Add a discard button to the modal
+  const ov = document.querySelector('.modal-overlay:last-child');
+  if (ov) {
+    const actions = ov.querySelector('.modal-actions');
+    const discard = document.createElement('button');
+    discard.className = 'btn btn-danger';
+    discard.textContent = 'Discard';
+    discard.addEventListener('click', () => { ov.remove(); onDiscard(); });
+    actions.insertBefore(discard, actions.firstChild);
+  }
+}
+
 function openMeal(id) {
-  selId = id;
-  const meal = meals.find(m=>m.id===id);
-  if (meal) showEditor(meal);
-  renderMealList();
-  document.getElementById('tab-directory').classList.add('editing');
+  const doOpen = () => {
+    selId = id;
+    const meal = meals.find(m=>m.id===id);
+    if (meal) showEditor(meal);
+    renderMealList();
+    document.getElementById('tab-directory').classList.add('editing');
+  };
+  if (selId && selId !== id) { guardEditorExit(doOpen); }
+  else doOpen();
 }
 
 function showEditor(meal) {
@@ -1005,12 +1050,14 @@ function showEditor(meal) {
   const ingList = document.getElementById('ing-list');
   ingList.innerHTML = '';
   for (const ing of meal.ingredients||[]) addIngRow(ing);
+  editorSnapshot = editorStateString();
 }
 
 function closeEditor() {
   document.getElementById('meal-editor').classList.add('hidden');
   selId = null;
   isNewMeal = false;
+  editorSnapshot = null;
   renderMealList();
   document.getElementById('tab-directory').classList.remove('editing');
 }
@@ -1106,12 +1153,16 @@ function collectEditor() {
 let isNewMeal = false;
 
 function newMeal() {
-  isNewMeal = true;
-  selId = null;
-  showEditor({name:'', ingredients:[], notes:''});
-  renderMealList();
-  document.getElementById('tab-directory').classList.add('editing');
-  document.getElementById('editor-name').focus();
+  const doNew = () => {
+    isNewMeal = true;
+    selId = null;
+    showEditor({name:'', ingredients:[], notes:''});
+    renderMealList();
+    document.getElementById('tab-directory').classList.add('editing');
+    document.getElementById('editor-name').focus();
+  };
+  if (isEditorDirty()) guardEditorExit(doNew);
+  else doNew();
 }
 
 function absorbNewCats(data) {
@@ -1146,6 +1197,7 @@ function saveMeal() {
     renderMealList();
     setStatus('dir-status','Meal saved!');
   }
+  editorSnapshot = editorStateString();
 }
 
 function dupMeal() {
@@ -1845,7 +1897,7 @@ function init() {
   document.getElementById('btn-save-meal').addEventListener('click', saveMeal);
   document.getElementById('btn-dup-meal').addEventListener('click', dupMeal);
   document.getElementById('btn-del-meal').addEventListener('click', delMeal);
-  document.getElementById('back-btn').addEventListener('click', closeEditor);
+  document.getElementById('back-btn').addEventListener('click', () => guardEditorExit(closeEditor));
 
   // Planner
   document.getElementById('btn-apply').addEventListener('click', applyPlanner);
@@ -1875,6 +1927,18 @@ function init() {
   updateUndoRedoBtns();
 
   renderMealList();
+
+  // Detect fresh PWA launch (home screen app) with no user data — prompt to import
+  const isStandalone = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
+  const hasUserData = localStorage.getItem(MEALS_KEY) || localStorage.getItem(PLAN_KEY);
+  if (isStandalone && !hasUserData) {
+    modal({
+      title: 'Welcome!',
+      body: 'It looks like you just installed this app. If you were using it in your browser, your data didn\u2019t transfer automatically. Tap "Import" to load your exported data file.',
+      okText: 'Import', okClass: 'btn-primary',
+      onOk: importData
+    });
+  }
 }
 
 document.addEventListener('DOMContentLoaded', init);
