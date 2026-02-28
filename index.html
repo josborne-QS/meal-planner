@@ -49,7 +49,7 @@
     }
     .app-title { font-size: 15px; font-weight: 700; color: var(--accent); white-space: nowrap; padding-right: 6px; }
     .title-group { display: flex; align-items: center; gap: 6px; }
-    .title-group .btn-icon { font-size: 13px; padding: 4px 7px; }
+    .title-group .btn-icon { font-size: 13px; padding: 4px 14px; }
     .btn-icon:disabled { opacity: 0.3; cursor: default; pointer-events: none; }
     .tabs { display: flex; overflow-x: auto; -webkit-overflow-scrolling: touch; flex: 1; }
     .tab-btn {
@@ -452,8 +452,8 @@
               <button class="btn btn-primary btn-sm" id="btn-add-ing">+ Add</button>
             </div>
             <div class="ing-browse">
-              <select id="browse-cat"><option value="">Browse by category...</option></select>
-              <select id="browse-ing" disabled><option value="">Select ingredient...</option></select>
+              <select id="browse-cat"><option value="">Browse by category</option></select>
+              <select id="browse-ing" disabled><option value="">Select ingredient</option></select>
             </div>
             <div class="ing-col-labels">
               <span class="ing-col-label">Ingredient</span>
@@ -1103,7 +1103,7 @@ function initBrowseDropdowns() {
   }
 
   catSel.addEventListener('change', () => {
-    ingSel.innerHTML = '<option value="">Select ingredient...</option>';
+    ingSel.innerHTML = '<option value="">Select ingredient</option>';
     const cat = catSel.value;
     if (!cat) { ingSel.disabled = true; return; }
     const items = (ING_BY_CAT[cat] || []).slice().sort();
@@ -1161,9 +1161,10 @@ function addIngRow(data={}) {
   rm.addEventListener('click', ()=>{ row.remove(); autoSaveEditor(); }); row.appendChild(rm);
 
   list.appendChild(row);
-  row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-  nameAc.input.focus();
-  if (data.name) autoSaveEditor();
+  if (!data.name) {
+    row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    nameAc.input.focus();
+  } else { autoSaveEditor(); }
   return { row, nameAc, qty, unitAc, catAc };
 }
 
