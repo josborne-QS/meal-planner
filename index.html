@@ -153,8 +153,14 @@
       font-size: 14px; font-weight: 500; color: var(--text);
       transition: background .1s, color .1s; margin-bottom: 2px;
     }
+    .meal-list-item { display: flex; align-items: center; justify-content: space-between; }
     .meal-list-item:hover { background: var(--accent-light); }
     .meal-list-item.selected { background: var(--accent); color: white; }
+    .meal-tag-planned {
+      font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 4px;
+      background: var(--accent-light); color: var(--accent); white-space: nowrap; margin-left: 8px;
+    }
+    .meal-list-item.selected .meal-tag-planned { background: rgba(255,255,255,0.25); color: white; }
     .meal-list-empty { color: var(--text-muted); font-size: 13px; padding: 16px 10px; text-align: center; }
 
     /* Editor panel */
@@ -716,18 +722,24 @@ let selId = null;        // selected meal id
 let shopItems = [];      // current shopping list items
 let addCat = null;       // active inline-add category
 let shopCatOrder = [];   // persistent user-defined category order
+let lastGenMealIds = new Set(); // meal IDs from last generated shopping list
 const collapsedCats = new Set(); // collapsed category groups in shopping list
 const autoHiddenCats = new Set(); // categories already auto-hidden after all checked
 
 /* =====================================================================
-   UNDO / REDO
+   UNDO / REDO  (per-tab stacks)
 ===================================================================== */
-const UNDO_LIMIT = 5;
+const UNDO_LIMIT = 20;
 const UNDO_KEYS = [MEALS_KEY, PLAN_KEY, ORDER_KEY, USER_CATS_KEY, SHOP_KEY];
-let undoStack = [];
-let redoStack = [];
+const tabUndoStacks = { directory:[], planner:[], shopping:[], data:[] };
+const tabRedoStacks = { directory:[], planner:[], shopping:[], data:[] };
 let snapshotPending = false;
 let restoringState = false;
+
+function activeTab() {
+  const btn = document.querySelector('.tab-btn.active');
+  return btn ? btn.dataset.tab : 'directory';
+}
 
 function takeSnapshot() {
   const snap = {};
@@ -741,9 +753,10 @@ function pushUndo() {
   snapshotPending = true;
   queueMicrotask(() => {
     snapshotPending = false;
-    undoStack.push(snap);
-    if (undoStack.length > UNDO_LIMIT) undoStack.shift();
-    redoStack = [];
+    const tab = activeTab();
+    tabUndoStacks[tab].push(snap);
+    if (tabUndoStacks[tab].length > UNDO_LIMIT) tabUndoStacks[tab].shift();
+    tabRedoStacks[tab] = [];
     updateUndoRedoBtns();
   });
 }
@@ -778,10 +791,11 @@ function renderAll() {
 }
 
 function undo() {
-  if (!undoStack.length) return;
+  const tab = activeTab();
+  if (!tabUndoStacks[tab].length) return;
   const current = takeSnapshot();
-  redoStack.push(current);
-  const snap = undoStack.pop();
+  tabRedoStacks[tab].push(current);
+  const snap = tabUndoStacks[tab].pop();
   applySnapshot(snap);
   restoringState = true;
   renderAll();
@@ -790,10 +804,11 @@ function undo() {
 }
 
 function redo() {
-  if (!redoStack.length) return;
+  const tab = activeTab();
+  if (!tabRedoStacks[tab].length) return;
   const current = takeSnapshot();
-  undoStack.push(current);
-  const snap = redoStack.pop();
+  tabUndoStacks[tab].push(current);
+  const snap = tabRedoStacks[tab].pop();
   applySnapshot(snap);
   restoringState = true;
   renderAll();
@@ -802,10 +817,11 @@ function redo() {
 }
 
 function updateUndoRedoBtns() {
+  const tab = activeTab();
   const u = document.getElementById('btn-undo');
   const r = document.getElementById('btn-redo');
-  if (u) u.disabled = !undoStack.length;
-  if (r) r.disabled = !redoStack.length;
+  if (u) u.disabled = !tabUndoStacks[tab].length;
+  if (r) r.disabled = !tabRedoStacks[tab].length;
 }
 
 /* =====================================================================
@@ -865,9 +881,9 @@ function makeAC(parent, { suggestions, placeholder, value, inputClass, onSelect,
   inp.addEventListener('blur', () => setTimeout(hide, 160));
   inp.addEventListener('focus', () => {
     inp.select();
+    if (showAll) { show(suggestions.slice(0,30)); return; }
     const q = inp.value.toLowerCase();
     if (q) show(suggestions.filter(s => s.toLowerCase().startsWith(q)).slice(0,30));
-    else if (showAll) show(suggestions.slice(0,30));
   });
 
   parent.appendChild(wrap);
@@ -909,6 +925,7 @@ function switchTab(name) {
   document.getElementById('tab-'+name).classList.remove('hidden');
   if (name==='planner') renderPlanner();
   if (name==='directory') closeEditor();
+  updateUndoRedoBtns();
 }
 
 /* =====================================================================
@@ -958,7 +975,15 @@ function renderMealList() {
   for (const meal of filtered) {
     const item = document.createElement('div');
     item.className='meal-list-item'+(meal.id===selId?' selected':'');
-    item.textContent = meal.name || '(unnamed)';
+    const nameSpan = document.createElement('span');
+    nameSpan.textContent = meal.name || '(unnamed)';
+    item.appendChild(nameSpan);
+    if (lastGenMealIds.has(meal.id)) {
+      const tag = document.createElement('span');
+      tag.className = 'meal-tag-planned';
+      tag.textContent = 'In List';
+      item.appendChild(tag);
+    }
     item.addEventListener('click', ()=>openMeal(meal.id));
     list.appendChild(item);
   }
@@ -1288,12 +1313,14 @@ function doGenerateList(ids) {
     }
   }
   shopItems = Object.values(agg);
+  lastGenMealIds = new Set(ids);
   saveShopList();
   addCat = null;
   globalAddOpen = false;
   collapsedCats.clear();
   autoHiddenCats.clear();
   renderShopList();
+  renderMealList();
   shopStatus('Generated '+shopItems.length+' items from plan.');
 }
 
@@ -1486,7 +1513,7 @@ function makeShopItem(item) {
   qty.addEventListener('change',()=>{ item.quantity=qty.value.trim(); item.unit=''; saveShopList(); });
 
   const rm=document.createElement('button'); rm.className='btn btn-danger btn-xs'; rm.innerHTML='&#x2715;';
-  rm.addEventListener('click',()=>{ shopItems=shopItems.filter(i=>i!==item); saveShopList(); row.remove(); });
+  rm.addEventListener('click',()=>{ shopItems=shopItems.filter(i=>i!==item); saveShopList(); renderShopList(); });
 
   row.appendChild(cb); row.appendChild(name); row.appendChild(qty); row.appendChild(rm);
   return row;
@@ -1766,7 +1793,8 @@ function importData() {
             if (data.shopList) { localStorage.setItem(SHOP_KEY, JSON.stringify(data.shopList)); shopItems = data.shopList; } else { shopItems = loadShopList(); }
             saveShopList();
             addCat = null; globalAddOpen = false;
-            undoStack = []; redoStack = []; updateUndoRedoBtns();
+            for (const t in tabUndoStacks) { tabUndoStacks[t]=[]; tabRedoStacks[t]=[]; }
+            updateUndoRedoBtns();
             renderMealList();
             // Refresh planner if active
             if (!document.getElementById('tab-planner').classList.contains('hidden')) renderPlanner();
@@ -1803,6 +1831,7 @@ function init() {
   plan  = loadPlan();
   shopCatOrder = loadCatOrder();
   shopItems = loadShopList();
+  if (shopItems.length) lastGenMealIds = new Set(getPlannedIds());
 
   // Tab buttons
   document.querySelectorAll('.tab-btn').forEach(b => b.addEventListener('click',()=>switchTab(b.dataset.tab)));
