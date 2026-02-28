@@ -976,6 +976,16 @@ function ingSuggestions() {
   return [...new Set([...base,...used])].sort();
 }
 
+function moveMeal(id, dir) {
+  const idx = meals.findIndex(m=>m.id===id);
+  if (idx<0) return;
+  const newIdx = idx + dir;
+  if (newIdx<0 || newIdx>=meals.length) return;
+  [meals[idx], meals[newIdx]] = [meals[newIdx], meals[idx]];
+  saveMeals(meals);
+  renderMealList();
+}
+
 function renderMealList() {
   const list = document.getElementById('meal-list');
   const q = document.getElementById('meal-search').value.toLowerCase().trim();
@@ -989,14 +999,31 @@ function renderMealList() {
   for (const meal of filtered) {
     const item = document.createElement('div');
     item.className='meal-list-item'+(meal.id===selId?' selected':'');
+    const left = document.createElement('span');
+    left.style.cssText='display:flex;align-items:center;gap:6px;overflow:hidden;';
     const nameSpan = document.createElement('span');
     nameSpan.textContent = meal.name || '(unnamed)';
-    item.appendChild(nameSpan);
+    nameSpan.style.cssText='overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+    left.appendChild(nameSpan);
     if (lastGenMealIds.has(meal.id)) {
       const tag = document.createElement('span');
       tag.className = 'meal-tag-planned';
       tag.textContent = 'Used Recently';
-      item.appendChild(tag);
+      left.appendChild(tag);
+    }
+    item.appendChild(left);
+    if (!q) {
+      const btns = document.createElement('span');
+      btns.style.cssText='display:flex;gap:2px;flex-shrink:0;';
+      const up = document.createElement('button'); up.className='btn-reorder'; up.innerHTML='&#x2191;'; up.title='Move up';
+      const dn = document.createElement('button'); dn.className='btn-reorder'; dn.innerHTML='&#x2193;'; dn.title='Move down';
+      const mi = meals.indexOf(meal);
+      if (mi===0) up.disabled=true;
+      if (mi===meals.length-1) dn.disabled=true;
+      up.addEventListener('click', e=>{e.stopPropagation(); moveMeal(meal.id,-1);});
+      dn.addEventListener('click', e=>{e.stopPropagation(); moveMeal(meal.id,1);});
+      btns.appendChild(up); btns.appendChild(dn);
+      item.appendChild(btns);
     }
     item.addEventListener('click', ()=>openMeal(meal.id));
     list.appendChild(item);
