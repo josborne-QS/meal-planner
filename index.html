@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="Meal Planner">
@@ -48,6 +48,9 @@
       gap: 6px;
     }
     .app-title { font-size: 15px; font-weight: 700; color: var(--accent); white-space: nowrap; padding-right: 6px; }
+    .title-group { display: flex; align-items: center; gap: 6px; }
+    .title-group .btn-icon { font-size: 13px; padding: 4px 7px; }
+    .btn-icon:disabled { opacity: 0.3; cursor: default; pointer-events: none; }
     .tabs { display: flex; overflow-x: auto; -webkit-overflow-scrolling: touch; flex: 1; }
     .tab-btn {
       padding: 13px 14px;
@@ -314,7 +317,8 @@
         padding: 6px 10px;
         gap: 2px;
       }
-      .app-title { font-size: 13px; width: 100%; padding-bottom: 2px; }
+      .title-group { width: 100%; padding-bottom: 2px; }
+      .app-title { font-size: 13px; }
       .tabs { width: 100%; order: 1; }
       .tab-btn { padding: 10px 8px; font-size: 12px; flex: 1; text-align: center; }
       /* Directory: stack panels vertically */
@@ -403,7 +407,11 @@
 <div id="app">
 
   <header>
-    <span class="app-title">&#x2764;&#xFE0F; Meal Planner</span>
+    <div class="title-group">
+      <span class="app-title">&#x2764;&#xFE0F; Meal Planner</span>
+      <button class="btn-icon" id="btn-undo" disabled title="Undo">&#x2190;</button>
+      <button class="btn-icon" id="btn-redo" disabled title="Redo">&#x2192;</button>
+    </div>
     <nav class="tabs">
       <button class="tab-btn active" data-tab="directory">Edit Meals</button>
       <button class="tab-btn" data-tab="planner">Select Meals</button>
@@ -670,25 +678,25 @@ function loadMeals() {
   try { const r = localStorage.getItem(MEALS_KEY); if (r) return JSON.parse(r); } catch(e){}
   return JSON.parse(JSON.stringify(SEED_MEALS));
 }
-function saveMeals(m) { localStorage.setItem(MEALS_KEY, JSON.stringify(m)); }
+function saveMeals(m) { pushUndo(); localStorage.setItem(MEALS_KEY, JSON.stringify(m)); }
 
 function loadPlan() {
   try { const r = localStorage.getItem(PLAN_KEY); if (r) return JSON.parse(r); } catch(e){}
   return {num_days:7, slot_labels:['Breakfast','Lunch','Dinner'], plan:{}};
 }
-function savePlan(p) { localStorage.setItem(PLAN_KEY, JSON.stringify(p)); }
+function savePlan(p) { pushUndo(); localStorage.setItem(PLAN_KEY, JSON.stringify(p)); }
 
 function loadUserCats() {
   try { const r=localStorage.getItem(USER_CATS_KEY); if(r) return JSON.parse(r); } catch(e){}
   return null;
 }
-function saveUserCats(c) { localStorage.setItem(USER_CATS_KEY, JSON.stringify(c)); }
+function saveUserCats(c) { pushUndo(); localStorage.setItem(USER_CATS_KEY, JSON.stringify(c)); }
 
 function loadShopList() {
   try { const r = localStorage.getItem(SHOP_KEY); if (r) return JSON.parse(r); } catch(e){}
   return [];
 }
-function saveShopList() { localStorage.setItem(SHOP_KEY, JSON.stringify(shopItems)); }
+function saveShopList() { pushUndo(); localStorage.setItem(SHOP_KEY, JSON.stringify(shopItems)); }
 let userCats = null; // null = use defaults, array = user-managed list
 function allCategories() { return userCats !== null ? [...userCats] : [...CATEGORIES]; }
 
@@ -710,6 +718,95 @@ let addCat = null;       // active inline-add category
 let shopCatOrder = [];   // persistent user-defined category order
 const collapsedCats = new Set(); // collapsed category groups in shopping list
 const autoHiddenCats = new Set(); // categories already auto-hidden after all checked
+
+/* =====================================================================
+   UNDO / REDO
+===================================================================== */
+const UNDO_LIMIT = 5;
+const UNDO_KEYS = [MEALS_KEY, PLAN_KEY, ORDER_KEY, USER_CATS_KEY, SHOP_KEY];
+let undoStack = [];
+let redoStack = [];
+let snapshotPending = false;
+let restoringState = false;
+
+function takeSnapshot() {
+  const snap = {};
+  for (const k of UNDO_KEYS) snap[k] = localStorage.getItem(k);
+  return snap;
+}
+
+function pushUndo() {
+  if (restoringState || snapshotPending) return;
+  const snap = takeSnapshot();
+  snapshotPending = true;
+  queueMicrotask(() => {
+    snapshotPending = false;
+    undoStack.push(snap);
+    if (undoStack.length > UNDO_LIMIT) undoStack.shift();
+    redoStack = [];
+    updateUndoRedoBtns();
+  });
+}
+
+function applySnapshot(snap) {
+  for (const k of UNDO_KEYS) {
+    if (snap[k] === null) localStorage.removeItem(k);
+    else localStorage.setItem(k, snap[k]);
+  }
+}
+
+function renderAll() {
+  meals = loadMeals();
+  plan  = loadPlan();
+  shopCatOrder = loadCatOrder();
+  userCats = loadUserCats();
+  shopItems = loadShopList();
+  addCat = null;
+  globalAddOpen = false;
+  // If selected meal no longer exists, close editor
+  if (selId && !meals.find(m => m.id === selId)) {
+    selId = null;
+    const dir = document.getElementById('tab-directory');
+    if (dir) dir.classList.remove('editing');
+    const ed = document.getElementById('meal-editor');
+    if (ed) ed.classList.add('hidden');
+  }
+  renderMealList();
+  renderPlanner();
+  renderShopList();
+  renderCatManager();
+}
+
+function undo() {
+  if (!undoStack.length) return;
+  const current = takeSnapshot();
+  redoStack.push(current);
+  const snap = undoStack.pop();
+  applySnapshot(snap);
+  restoringState = true;
+  renderAll();
+  restoringState = false;
+  updateUndoRedoBtns();
+}
+
+function redo() {
+  if (!redoStack.length) return;
+  const current = takeSnapshot();
+  undoStack.push(current);
+  const snap = redoStack.pop();
+  applySnapshot(snap);
+  restoringState = true;
+  renderAll();
+  restoringState = false;
+  updateUndoRedoBtns();
+}
+
+function updateUndoRedoBtns() {
+  const u = document.getElementById('btn-undo');
+  const r = document.getElementById('btn-redo');
+  if (u) u.disabled = !undoStack.length;
+  if (r) r.disabled = !redoStack.length;
+}
 
 /* =====================================================================
    AUTOCOMPLETE
@@ -1181,10 +1278,9 @@ function doGenerateList(ids) {
       const key=name.toLowerCase();
       if (agg[key]) {
         const ex=agg[key];
-        if (ex.quantity&&ing.quantity) {
-          const q1=parseFloat(ex.quantity), q2=parseFloat(ing.quantity);
-          if (!isNaN(q1)&&!isNaN(q2)) ex.quantity=String(q1+q2);
-        } else if (ing.quantity&&!ex.quantity) { ex.quantity=ing.quantity; ex.unit=ing.unit||''; }
+        const q1=parseFloat(ex.quantity) || 1, q2=parseFloat(ing.quantity) || 1;
+        ex.quantity=String(q1+q2);
+        if (!ex.unit&&ing.unit) ex.unit=ing.unit||'';
         if (!ex.category&&ing.category) ex.category=ing.category;
       } else {
         agg[key]={name, quantity:ing.quantity||'', unit:ing.unit||'', category:ing.category||'Other', checked:false};
@@ -1205,7 +1301,7 @@ function loadCatOrder() {
   try { const r=localStorage.getItem(ORDER_KEY); if(r) return JSON.parse(r); } catch(e){}
   return [...allCategories()];
 }
-function saveCatOrder(o) { localStorage.setItem(ORDER_KEY, JSON.stringify(o)); }
+function saveCatOrder(o) { pushUndo(); localStorage.setItem(ORDER_KEY, JSON.stringify(o)); }
 
 function ensureCatOrder() {
   // Append any new categories (from shopItems) that aren't in the saved order yet
@@ -1670,6 +1766,7 @@ function importData() {
             if (data.shopList) { localStorage.setItem(SHOP_KEY, JSON.stringify(data.shopList)); shopItems = data.shopList; } else { shopItems = loadShopList(); }
             saveShopList();
             addCat = null; globalAddOpen = false;
+            undoStack = []; redoStack = []; updateUndoRedoBtns();
             renderMealList();
             // Refresh planner if active
             if (!document.getElementById('tab-planner').classList.contains('hidden')) renderPlanner();
@@ -1742,6 +1839,11 @@ function init() {
   document.getElementById('btn-gen-planner').addEventListener('click', () => { generateList(); switchTab('shopping'); });
   document.getElementById('btn-gen').addEventListener('click', generateList);
   document.getElementById('btn-copy').addEventListener('click', copyList);
+
+  // Undo / Redo
+  document.getElementById('btn-undo').addEventListener('click', undo);
+  document.getElementById('btn-redo').addEventListener('click', redo);
+  updateUndoRedoBtns();
 
   renderMealList();
 }
