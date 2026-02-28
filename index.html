@@ -362,6 +362,9 @@
       .shopping-bar { gap: 6px; }
       .shopping-wrap { padding: 4px 10px 24px; }
 
+      /* Prevent iOS auto-zoom on input focus (requires >= 16px) */
+      input[type="text"], input[type="number"], select, textarea { font-size: 16px; }
+
       /* Bigger touch targets */
       .btn { min-height: 40px; padding: 10px 14px; }
       .btn-sm { min-height: 36px; padding: 8px 12px; }
@@ -451,6 +454,7 @@
               <span></span>
             </div>
             <div id="ing-list"></div>
+            <button class="btn btn-primary btn-sm" id="btn-add-ing-bottom">+ Add</button>
           </div>
 
           <div class="field-group">
@@ -620,14 +624,46 @@ const MEALS_KEY   = 'mplanner_meals';
 const PLAN_KEY    = 'mplanner_plan';
 const ORDER_KEY   = 'mplanner_catorder';
 const USER_CATS_KEY = 'mplanner_usercats';
+const SHOP_KEY      = 'mplanner_shoplist';
 
 const SEED_MEALS = [
   {id:'8cf58ee1-bbe7-4623-a869-968f1869fd80',name:'Pizza',
-    ingredients:[{name:'pizza dough',quantity:'',unit:'',category:''},{name:'pizza sauce',quantity:'',unit:'',category:''},{name:'basil',quantity:'',unit:'',category:'Produce'},{name:'pepperoni',quantity:'',unit:'',category:'Meat & Seafood'}],notes:''},
+    ingredients:[
+      {name:'pizza dough',quantity:'1',unit:'lb',category:'Bakery'},
+      {name:'pizza sauce',quantity:'1',unit:'cup',category:'Pantry'},
+      {name:'mozzarella cheese',quantity:'8',unit:'oz',category:'Dairy'},
+      {name:'pepperoni',quantity:'4',unit:'oz',category:'Meat & Seafood'},
+      {name:'olive oil',quantity:'1',unit:'tbsp',category:'Pantry'},
+      {name:'garlic',quantity:'2',unit:'cloves',category:'Produce'},
+      {name:'fresh basil',quantity:'1',unit:'bunch',category:'Produce'},
+    ],notes:'Preheat oven to 475°F. Stretch dough, top, and bake 12-15 min.'},
   {id:'d84df03a-ccf7-4711-8e24-d1fcf939ca85',name:'Chicken Dinner',
-    ingredients:[{name:'Chicken thighs',quantity:'',unit:'',category:'Meat & Seafood'},{name:'asparagus',quantity:'',unit:'',category:'Produce'},{name:'potatoes',quantity:'',unit:'',category:''},{name:'peppers',quantity:'2',unit:'',category:'Pantry'}],notes:''},
+    ingredients:[
+      {name:'chicken thighs',quantity:'1.5',unit:'lbs',category:'Meat & Seafood'},
+      {name:'asparagus',quantity:'1',unit:'bunch',category:'Produce'},
+      {name:'baby potatoes',quantity:'1',unit:'lb',category:'Produce'},
+      {name:'olive oil',quantity:'2',unit:'tbsp',category:'Pantry'},
+      {name:'garlic',quantity:'3',unit:'cloves',category:'Produce'},
+      {name:'lemon',quantity:'1',unit:'',category:'Produce'},
+      {name:'butter',quantity:'2',unit:'tbsp',category:'Dairy'},
+      {name:'salt',quantity:'',unit:'',category:'Pantry'},
+      {name:'black pepper',quantity:'',unit:'',category:'Pantry'},
+    ],notes:'Season and roast chicken at 425°F. Toss veggies in olive oil, roast alongside.'},
   {id:'81b400a8-1c3d-4531-a478-9eae14576b52',name:'Tikka Masala',
-    ingredients:[{name:'tomato sauce',quantity:'',unit:'',category:'Pantry'},{name:'tofu',quantity:'',unit:'',category:''},{name:'peppers',quantity:'3',unit:'',category:''}],notes:''},
+    ingredients:[
+      {name:'chicken breast',quantity:'1.5',unit:'lbs',category:'Meat & Seafood'},
+      {name:'plain yogurt',quantity:'1',unit:'cup',category:'Dairy'},
+      {name:'crushed tomatoes',quantity:'14',unit:'oz',category:'Pantry'},
+      {name:'coconut milk',quantity:'1',unit:'can',category:'Pantry'},
+      {name:'onion',quantity:'1',unit:'',category:'Produce'},
+      {name:'garlic',quantity:'4',unit:'cloves',category:'Produce'},
+      {name:'fresh ginger',quantity:'1',unit:'inch',category:'Produce'},
+      {name:'garam masala',quantity:'2',unit:'tbsp',category:'Pantry'},
+      {name:'cumin',quantity:'1',unit:'tsp',category:'Pantry'},
+      {name:'turmeric',quantity:'1',unit:'tsp',category:'Pantry'},
+      {name:'basmati rice',quantity:'1.5',unit:'cups',category:'Pantry'},
+      {name:'cilantro',quantity:'1',unit:'bunch',category:'Produce'},
+    ],notes:'Marinate chicken in yogurt and spices. Simmer in tomato-coconut sauce. Serve over rice.'},
 ];
 
 function loadMeals() {
@@ -647,6 +683,12 @@ function loadUserCats() {
   return null;
 }
 function saveUserCats(c) { localStorage.setItem(USER_CATS_KEY, JSON.stringify(c)); }
+
+function loadShopList() {
+  try { const r = localStorage.getItem(SHOP_KEY); if (r) return JSON.parse(r); } catch(e){}
+  return [];
+}
+function saveShopList() { localStorage.setItem(SHOP_KEY, JSON.stringify(shopItems)); }
 let userCats = null; // null = use defaults, array = user-managed list
 function allCategories() { return userCats !== null ? [...userCats] : [...CATEGORIES]; }
 
@@ -672,7 +714,7 @@ const autoHiddenCats = new Set(); // categories already auto-hidden after all ch
 /* =====================================================================
    AUTOCOMPLETE
 ===================================================================== */
-function makeAC(parent, { suggestions, placeholder, value, inputClass, onSelect }) {
+function makeAC(parent, { suggestions, placeholder, value, inputClass, onSelect, showAll }) {
   const wrap = document.createElement('div');
   wrap.className = 'ac-wrap' + (inputClass ? ' ' + inputClass : '');
 
@@ -713,7 +755,7 @@ function makeAC(parent, { suggestions, placeholder, value, inputClass, onSelect 
 
   inp.addEventListener('input', () => {
     const q = inp.value.toLowerCase();
-    if (!q) { hide(); return; }
+    if (!q) { if (showAll) show(suggestions.slice(0,30)); else hide(); return; }
     show(suggestions.filter(s => s.toLowerCase().startsWith(q)).slice(0,30));
   });
   inp.addEventListener('keydown', e => {
@@ -728,6 +770,7 @@ function makeAC(parent, { suggestions, placeholder, value, inputClass, onSelect 
     inp.select();
     const q = inp.value.toLowerCase();
     if (q) show(suggestions.filter(s => s.toLowerCase().startsWith(q)).slice(0,30));
+    else if (showAll) show(suggestions.slice(0,30));
   });
 
   parent.appendChild(wrap);
@@ -914,6 +957,8 @@ function addIngRow(data={}) {
   rm.addEventListener('click', ()=>row.remove()); row.appendChild(rm);
 
   list.appendChild(row);
+  row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  nameAc.input.focus();
   return { row, nameAc, qty, unitAc, catAc };
 }
 
@@ -1109,10 +1154,24 @@ function getPlannedIds() {
 }
 
 function generateList() {
+  const ids = getPlannedIds();
+  if (!ids.length) { shopStatus('No meals in the plan yet.',true); return; }
+
+  if (shopItems.length > 0) {
+    modal({
+      title: 'Replace Shopping List?',
+      body: 'You already have ' + shopItems.length + ' item' + (shopItems.length===1?'':'s') + '. Generating a new list will replace them.',
+      okText: 'Overwrite', okClass: 'btn-danger',
+      onOk: () => { doGenerateList(ids); }
+    });
+  } else {
+    doGenerateList(ids);
+  }
+}
+
+function doGenerateList(ids) {
   meals = loadMeals();
   const map = Object.fromEntries(meals.map(m=>[m.id,m]));
-  const ids  = getPlannedIds();
-  if (!ids.length) { shopStatus('No meals in the plan yet.',true); return; }
 
   const agg = {};
   for (const id of ids) {
@@ -1133,6 +1192,7 @@ function generateList() {
     }
   }
   shopItems = Object.values(agg);
+  saveShopList();
   addCat = null;
   globalAddOpen = false;
   collapsedCats.clear();
@@ -1236,6 +1296,7 @@ function renderShopList() {
       ok.addEventListener('click',()=>{
         const n=ac.get().trim(); if(!n) return;
         shopItems.push({name:n,quantity:'',unit:'',category:cat,checked:false});
+        saveShopList();
         addCat=null; renderShopList(); shopStatus("Added '"+n+"' to "+cat+'.');
       });
       cancel.addEventListener('click',()=>{ addCat=null; renderShopList(); });
@@ -1271,7 +1332,7 @@ function appendGlobalAdd(wrap) {
     // Category autocomplete — built-in categories + any already in the list
     const existingCats = [...new Set(shopItems.map(i => i.category||'Other'))];
     const catSugs = [...new Set([...allCategories(), ...existingCats])];
-    const catAc = makeAC(row, { suggestions: catSugs, placeholder: 'Category (e.g. Other)', value: 'Other' });
+    const catAc = makeAC(row, { suggestions: catSugs, placeholder: 'Category (e.g. Other)', value: 'Other', showAll: true });
     catAc.element.style.flex = '0 0 160px';
 
     const ok = document.createElement('button'); ok.className = 'btn btn-primary btn-xs'; ok.textContent = 'Add';
@@ -1282,6 +1343,7 @@ function appendGlobalAdd(wrap) {
       const cat  = catAc.get().trim() || 'Other';
       if (!name) return;
       shopItems.push({ name, quantity: '', unit: '', category: cat, checked: false });
+      saveShopList();
       globalAddOpen = false;
       renderShopList();
       shopStatus("Added '" + name + "' to " + cat + '.');
@@ -1319,16 +1381,16 @@ function makeShopItem(item) {
   const name=document.createElement('span'); name.className='shop-name'+(item.checked?' checked':'');
   name.textContent=item.name;
 
-  const toggle=()=>{ item.checked=cb.checked; name.classList.toggle('checked',item.checked); checkAutoHide(cat); };
+  const toggle=()=>{ item.checked=cb.checked; name.classList.toggle('checked',item.checked); saveShopList(); checkAutoHide(cat); };
   cb.addEventListener('change',toggle);
   name.addEventListener('click',()=>{ cb.checked=!cb.checked; toggle(); });
 
   const qty=document.createElement('input'); qty.type='text'; qty.className='shop-qty'; qty.placeholder='Qty';
   qty.value=[item.quantity,item.unit].filter(Boolean).join(' ');
-  qty.addEventListener('change',()=>{ item.quantity=qty.value.trim(); item.unit=''; });
+  qty.addEventListener('change',()=>{ item.quantity=qty.value.trim(); item.unit=''; saveShopList(); });
 
   const rm=document.createElement('button'); rm.className='btn btn-danger btn-xs'; rm.innerHTML='&#x2715;';
-  rm.addEventListener('click',()=>{ shopItems=shopItems.filter(i=>i!==item); row.remove(); });
+  rm.addEventListener('click',()=>{ shopItems=shopItems.filter(i=>i!==item); saveShopList(); row.remove(); });
 
   row.appendChild(cb); row.appendChild(name); row.appendChild(qty); row.appendChild(rm);
   return row;
@@ -1570,6 +1632,7 @@ function exportData() {
     plan:     JSON.parse(localStorage.getItem(PLAN_KEY)   || '{}'),
     catOrder:  JSON.parse(localStorage.getItem(ORDER_KEY)    || '[]'),
     userCats:  JSON.parse(localStorage.getItem(USER_CATS_KEY) || 'null'),
+    shopList:  JSON.parse(localStorage.getItem(SHOP_KEY) || '[]'),
   };
   const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
   const a = document.createElement('a');
@@ -1604,7 +1667,9 @@ function importData() {
             shopCatOrder = loadCatOrder();
             userCats = loadUserCats();
             renderCatManager();
-            shopItems = []; addCat = null; globalAddOpen = false;
+            if (data.shopList) { localStorage.setItem(SHOP_KEY, JSON.stringify(data.shopList)); shopItems = data.shopList; } else { shopItems = loadShopList(); }
+            saveShopList();
+            addCat = null; globalAddOpen = false;
             renderMealList();
             // Refresh planner if active
             if (!document.getElementById('tab-planner').classList.contains('hidden')) renderPlanner();
@@ -1640,6 +1705,7 @@ function init() {
   meals = loadMeals();
   plan  = loadPlan();
   shopCatOrder = loadCatOrder();
+  shopItems = loadShopList();
 
   // Tab buttons
   document.querySelectorAll('.tab-btn').forEach(b => b.addEventListener('click',()=>switchTab(b.dataset.tab)));
@@ -1648,6 +1714,7 @@ function init() {
   document.getElementById('btn-new-meal').addEventListener('click', newMeal);
   document.getElementById('meal-search').addEventListener('input', renderMealList);
   document.getElementById('btn-add-ing').addEventListener('click', ()=>addIngRow());
+  document.getElementById('btn-add-ing-bottom').addEventListener('click', ()=>addIngRow());
   initBrowseDropdowns();
   document.getElementById('btn-save-meal').addEventListener('click', saveMeal);
   document.getElementById('btn-dup-meal').addEventListener('click', dupMeal);
