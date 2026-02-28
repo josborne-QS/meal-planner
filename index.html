@@ -776,13 +776,19 @@ function renderAll() {
   shopItems = loadShopList();
   addCat = null;
   globalAddOpen = false;
-  // If selected meal no longer exists, close editor
-  if (selId && !meals.find(m => m.id === selId)) {
-    selId = null;
-    const dir = document.getElementById('tab-directory');
-    if (dir) dir.classList.remove('editing');
-    const ed = document.getElementById('meal-editor');
-    if (ed) ed.classList.add('hidden');
+  // If selected meal no longer exists, close editor; otherwise refresh it
+  if (selId) {
+    const meal = meals.find(m => m.id === selId);
+    if (!meal) {
+      selId = null;
+      const dir = document.getElementById('tab-directory');
+      if (dir) dir.classList.remove('editing');
+      const ed = document.getElementById('meal-editor');
+      if (ed) ed.classList.add('hidden');
+      editorSnapshot = null;
+    } else {
+      showEditor(meal);
+    }
   }
   renderMealList();
   renderPlanner();
@@ -1123,11 +1129,12 @@ function addIngRow(data={}) {
   // Remove
   const rm = document.createElement('button');
   rm.className='ing-remove'; rm.type='button'; rm.innerHTML='&#x2715;';
-  rm.addEventListener('click', ()=>row.remove()); row.appendChild(rm);
+  rm.addEventListener('click', ()=>{ row.remove(); autoSaveEditor(); }); row.appendChild(rm);
 
   list.appendChild(row);
   row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   nameAc.input.focus();
+  if (data.name) autoSaveEditor();
   return { row, nameAc, qty, unitAc, catAc };
 }
 
@@ -1178,6 +1185,23 @@ function absorbNewCats(data) {
     }
   }
   if (changed) { saveUserCats(userCats); renderCatManager(); }
+}
+
+function autoSaveEditor() {
+  const data = collectEditor();
+  if (!data) return;
+  absorbNewCats(data);
+  if (isNewMeal) {
+    const m = {id:uid(), ...data};
+    meals.push(m); saveMeals(meals);
+    selId = m.id;
+    isNewMeal = false;
+    renderMealList();
+  } else if (selId) {
+    const idx = meals.findIndex(m=>m.id===selId);
+    if (idx>=0) { meals[idx]={...meals[idx],...data}; saveMeals(meals); }
+  }
+  editorSnapshot = editorStateString();
 }
 
 function saveMeal() {
