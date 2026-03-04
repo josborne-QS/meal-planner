@@ -524,6 +524,15 @@
     <!-- ===== DATA ===== -->
     <div id="tab-data" class="tab-content hidden">
       <div class="data-tab-inner">
+        <div class="data-card" id="file-link-card" style="display:none">
+          <h3>Auto-Save to File</h3>
+          <p>Link a JSON file to auto-save all changes to disk</p>
+          <p id="file-status" style="font-size:13px;font-weight:500;margin-bottom:10px;">No file linked</p>
+          <div style="display:flex;gap:8px;justify-content:center;">
+            <button class="btn btn-primary" id="btn-link-file">Link Data File</button>
+            <button class="btn btn-secondary" id="btn-unlink-file" style="display:none">Unlink</button>
+          </div>
+        </div>
         <div class="data-card">
           <h3>Save meal plan data</h3>
           <p>Export before adding to home screen or to share with another device</p>
@@ -635,6 +644,11 @@ const ORDER_KEY   = 'mplanner_catorder';
 const USER_CATS_KEY = 'mplanner_usercats';
 const SHOP_KEY      = 'mplanner_shoplist';
 
+// File System Access API state
+let fileHandle = null;
+const FILE_SAVE_DELAY = 500;
+let fileSaveTimer = null;
+
 const SEED_MEALS = [
   {id:'8cf58ee1-bbe7-4623-a869-968f1869fd80',name:'Pizza',
     ingredients:[
@@ -679,25 +693,165 @@ function loadMeals() {
   try { const r = localStorage.getItem(MEALS_KEY); if (r) return JSON.parse(r); } catch(e){}
   return JSON.parse(JSON.stringify(SEED_MEALS));
 }
-function saveMeals(m) { pushUndo(); localStorage.setItem(MEALS_KEY, JSON.stringify(m)); }
+function saveMeals(m) { pushUndo(); localStorage.setItem(MEALS_KEY, JSON.stringify(m)); if (fileHandle) flushToFile(); }
 
 function loadPlan() {
   try { const r = localStorage.getItem(PLAN_KEY); if (r) return JSON.parse(r); } catch(e){}
   return {num_days:7, slot_labels:['Breakfast','Lunch','Dinner'], plan:{}};
 }
-function savePlan(p) { pushUndo(); localStorage.setItem(PLAN_KEY, JSON.stringify(p)); }
+function savePlan(p) { pushUndo(); localStorage.setItem(PLAN_KEY, JSON.stringify(p)); if (fileHandle) flushToFile(); }
 
 function loadUserCats() {
   try { const r=localStorage.getItem(USER_CATS_KEY); if(r) return JSON.parse(r); } catch(e){}
   return null;
 }
-function saveUserCats(c) { pushUndo(); localStorage.setItem(USER_CATS_KEY, JSON.stringify(c)); }
+function saveUserCats(c) { pushUndo(); localStorage.setItem(USER_CATS_KEY, JSON.stringify(c)); if (fileHandle) flushToFile(); }
 
 function loadShopList() {
   try { const r = localStorage.getItem(SHOP_KEY); if (r) return JSON.parse(r); } catch(e){}
   return [];
 }
-function saveShopList() { pushUndo(); localStorage.setItem(SHOP_KEY, JSON.stringify(shopItems)); }
+function saveShopList() { pushUndo(); localStorage.setItem(SHOP_KEY, JSON.stringify(shopItems)); if (fileHandle) flushToFile(); }
+
+/* ---- File System Access API – auto-save to JSON file ---- */
+function buildStateJSON() {
+  return JSON.stringify({
+    version: 1,
+    exported: new Date().toISOString(),
+    meals:    JSON.parse(localStorage.getItem(MEALS_KEY)  || '[]'),
+    plan:     JSON.parse(localStorage.getItem(PLAN_KEY)   || '{}'),
+    catOrder: JSON.parse(localStorage.getItem(ORDER_KEY)  || '[]'),
+    userCats: JSON.parse(localStorage.getItem(USER_CATS_KEY) || 'null'),
+    shopList: JSON.parse(localStorage.getItem(SHOP_KEY)   || '[]'),
+  }, null, 2);
+}
+
+function flushToFile() {
+  clearTimeout(fileSaveTimer);
+  fileSaveTimer = setTimeout(async () => {
+    try {
+      const writable = await fileHandle.createWritable();
+      await writable.write(buildStateJSON());
+      await writable.close();
+    } catch (e) {
+      console.warn('File save failed:', e);
+      fileHandle = null;
+      clearStoredFileHandle();
+      updateFileStatus();
+    }
+  }, FILE_SAVE_DELAY);
+}
+
+async function loadFromFile(handle) {
+  try {
+    const file = await handle.getFile();
+    const text = await file.text();
+    const data = JSON.parse(text);
+    if (!data.meals && !data.plan) return false;
+    if (data.meals)    localStorage.setItem(MEALS_KEY,  JSON.stringify(data.meals));
+    if (data.plan)     localStorage.setItem(PLAN_KEY,   JSON.stringify(data.plan));
+    if (data.catOrder) localStorage.setItem(ORDER_KEY,  JSON.stringify(data.catOrder));
+    if (data.userCats != null) localStorage.setItem(USER_CATS_KEY, JSON.stringify(data.userCats));
+    if (data.shopList) localStorage.setItem(SHOP_KEY,   JSON.stringify(data.shopList));
+    meals = loadMeals(); plan = loadPlan(); shopCatOrder = loadCatOrder();
+    userCats = loadUserCats(); shopItems = loadShopList();
+    return true;
+  } catch (e) { console.warn('File load failed:', e); return false; }
+}
+
+/* IndexedDB for persisting file handle across sessions */
+const IDB_NAME = 'mplanner_filehandle';
+const IDB_STORE = 'handles';
+
+function openHandleDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(IDB_NAME, 1);
+    req.onupgradeneeded = () => req.result.createObjectStore(IDB_STORE);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function storeFileHandle(handle) {
+  try {
+    const db = await openHandleDB();
+    const tx = db.transaction(IDB_STORE, 'readwrite');
+    tx.objectStore(IDB_STORE).put(handle, 'file');
+    await new Promise((res, rej) => { tx.oncomplete = res; tx.onerror = rej; });
+    db.close();
+  } catch (e) { console.warn('Failed to store file handle:', e); }
+}
+
+async function getStoredFileHandle() {
+  try {
+    const db = await openHandleDB();
+    const tx = db.transaction(IDB_STORE, 'readonly');
+    const req = tx.objectStore(IDB_STORE).get('file');
+    const result = await new Promise((res, rej) => { req.onsuccess = () => res(req.result); req.onerror = rej; });
+    db.close();
+    return result || null;
+  } catch (e) { return null; }
+}
+
+async function clearStoredFileHandle() {
+  try {
+    const db = await openHandleDB();
+    const tx = db.transaction(IDB_STORE, 'readwrite');
+    tx.objectStore(IDB_STORE).delete('file');
+    await new Promise((res, rej) => { tx.oncomplete = res; tx.onerror = rej; });
+    db.close();
+  } catch (e) {}
+}
+
+function updateFileStatus() {
+  const el = document.getElementById('file-status');
+  if (!el) return;
+  el.textContent = fileHandle ? 'Linked: ' + fileHandle.name : 'No file linked';
+  el.style.color = fileHandle ? 'var(--accent)' : 'var(--text-light)';
+  const unlinkBtn = document.getElementById('btn-unlink-file');
+  if (unlinkBtn) unlinkBtn.style.display = fileHandle ? '' : 'none';
+}
+
+async function linkFile() {
+  try {
+    fileHandle = await window.showSaveFilePicker({
+      suggestedName: 'meal-planner-data.json',
+      types: [{ description: 'JSON', accept: { 'application/json': ['.json'] } }],
+    });
+    await storeFileHandle(fileHandle);
+    const writable = await fileHandle.createWritable();
+    await writable.write(buildStateJSON());
+    await writable.close();
+    updateFileStatus();
+  } catch (e) {
+    if (e.name !== 'AbortError') console.warn('Link file failed:', e);
+  }
+}
+
+async function unlinkFile() {
+  fileHandle = null;
+  await clearStoredFileHandle();
+  updateFileStatus();
+}
+
+async function restoreFileHandle() {
+  if (!window.showSaveFilePicker) return;
+  const card = document.getElementById('file-link-card');
+  if (card) card.style.display = '';
+  const stored = await getStoredFileHandle();
+  if (!stored) return;
+  try {
+    let perm = await stored.queryPermission({ mode: 'readwrite' });
+    if (perm === 'prompt') perm = await stored.requestPermission({ mode: 'readwrite' });
+    if (perm === 'granted') {
+      fileHandle = stored;
+      const loaded = await loadFromFile(fileHandle);
+      if (loaded) renderAll();
+      updateFileStatus();
+    } else { await clearStoredFileHandle(); }
+  } catch (e) { await clearStoredFileHandle(); }
+}
+
 let userCats = null; // null = use defaults, array = user-managed list
 function allCategories() { return userCats !== null ? [...userCats] : [...CATEGORIES]; }
 
@@ -927,6 +1081,7 @@ function switchTab(name) {
     document.querySelectorAll('.tab-content').forEach(t => t.classList.add('hidden'));
     document.getElementById('tab-'+name).classList.remove('hidden');
     if (name==='planner') renderPlanner();
+    if (name==='shopping') renderShopList();
     if (name==='directory') closeEditor();
     updateUndoRedoBtns();
   };
@@ -1434,7 +1589,7 @@ function loadCatOrder() {
   try { const r=localStorage.getItem(ORDER_KEY); if(r) return JSON.parse(r); } catch(e){}
   return [...allCategories()];
 }
-function saveCatOrder(o) { pushUndo(); localStorage.setItem(ORDER_KEY, JSON.stringify(o)); }
+function saveCatOrder(o) { pushUndo(); localStorage.setItem(ORDER_KEY, JSON.stringify(o)); if (fileHandle) flushToFile(); }
 
 function ensureCatOrder() {
   // Append any new categories (from shopItems) that aren't in the saved order yet
@@ -1902,6 +2057,7 @@ function importData() {
             for (const t in tabUndoStacks) { tabUndoStacks[t]=[]; tabRedoStacks[t]=[]; }
             updateUndoRedoBtns();
             renderMealList();
+            renderShopList();
             // Refresh planner if active
             if (!document.getElementById('tab-planner').classList.contains('hidden')) renderPlanner();
             const mealCount = (data.meals?.meals || data.meals || []).length;
@@ -1981,6 +2137,11 @@ function init() {
   updateUndoRedoBtns();
 
   renderMealList();
+
+  // File System Access API
+  document.getElementById('btn-link-file').addEventListener('click', linkFile);
+  document.getElementById('btn-unlink-file').addEventListener('click', unlinkFile);
+  restoreFileHandle();
 
   // Detect fresh PWA launch (home screen app) with no user data — prompt to import
   const isStandalone = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
