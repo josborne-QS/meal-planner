@@ -649,6 +649,11 @@ let fileHandle = null;
 const FILE_SAVE_DELAY = 500;
 let fileSaveTimer = null;
 
+// IndexedDB backup state
+const IDB_BACKUP_NAME = 'mplanner_backup';
+const IDB_BACKUP_STORE = 'data';
+let idbBackupTimer = null;
+
 const SEED_MEALS = [
   {id:'8cf58ee1-bbe7-4623-a869-968f1869fd80',name:'Pizza',
     ingredients:[
@@ -693,25 +698,73 @@ function loadMeals() {
   try { const r = localStorage.getItem(MEALS_KEY); if (r) return JSON.parse(r); } catch(e){}
   return JSON.parse(JSON.stringify(SEED_MEALS));
 }
-function saveMeals(m) { pushUndo(); localStorage.setItem(MEALS_KEY, JSON.stringify(m)); if (fileHandle) flushToFile(); }
+function saveMeals(m) { pushUndo(); localStorage.setItem(MEALS_KEY, JSON.stringify(m)); flushToIDB(); if (fileHandle) flushToFile(); }
 
 function loadPlan() {
   try { const r = localStorage.getItem(PLAN_KEY); if (r) return JSON.parse(r); } catch(e){}
   return {num_days:7, slot_labels:['Breakfast','Lunch','Dinner'], plan:{}};
 }
-function savePlan(p) { pushUndo(); localStorage.setItem(PLAN_KEY, JSON.stringify(p)); if (fileHandle) flushToFile(); }
+function savePlan(p) { pushUndo(); localStorage.setItem(PLAN_KEY, JSON.stringify(p)); flushToIDB(); if (fileHandle) flushToFile(); }
 
 function loadUserCats() {
   try { const r=localStorage.getItem(USER_CATS_KEY); if(r) return JSON.parse(r); } catch(e){}
   return null;
 }
-function saveUserCats(c) { pushUndo(); localStorage.setItem(USER_CATS_KEY, JSON.stringify(c)); if (fileHandle) flushToFile(); }
+function saveUserCats(c) { pushUndo(); localStorage.setItem(USER_CATS_KEY, JSON.stringify(c)); flushToIDB(); if (fileHandle) flushToFile(); }
 
 function loadShopList() {
   try { const r = localStorage.getItem(SHOP_KEY); if (r) return JSON.parse(r); } catch(e){}
   return [];
 }
-function saveShopList() { pushUndo(); localStorage.setItem(SHOP_KEY, JSON.stringify(shopItems)); if (fileHandle) flushToFile(); }
+function saveShopList() { pushUndo(); localStorage.setItem(SHOP_KEY, JSON.stringify(shopItems)); flushToIDB(); if (fileHandle) flushToFile(); }
+
+/* ---- IndexedDB backup (survives localStorage purge on iOS) ---- */
+function openBackupDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(IDB_BACKUP_NAME, 1);
+    req.onupgradeneeded = () => req.result.createObjectStore(IDB_BACKUP_STORE);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function flushToIDB() {
+  clearTimeout(idbBackupTimer);
+  idbBackupTimer = setTimeout(async () => {
+    try {
+      const data = {
+        meals:    JSON.parse(localStorage.getItem(MEALS_KEY)  || '[]'),
+        plan:     JSON.parse(localStorage.getItem(PLAN_KEY)   || '{}'),
+        catOrder: JSON.parse(localStorage.getItem(ORDER_KEY)  || '[]'),
+        userCats: JSON.parse(localStorage.getItem(USER_CATS_KEY) || 'null'),
+        shopList: JSON.parse(localStorage.getItem(SHOP_KEY)   || '[]'),
+        savedAt:  Date.now(),
+      };
+      const db = await openBackupDB();
+      const tx = db.transaction(IDB_BACKUP_STORE, 'readwrite');
+      tx.objectStore(IDB_BACKUP_STORE).put(data, 'backup');
+      await new Promise((res, rej) => { tx.oncomplete = res; tx.onerror = rej; });
+      db.close();
+    } catch (e) { console.warn('IDB backup failed:', e); }
+  }, FILE_SAVE_DELAY);
+}
+
+async function restoreFromIDB() {
+  try {
+    const db = await openBackupDB();
+    const tx = db.transaction(IDB_BACKUP_STORE, 'readonly');
+    const req = tx.objectStore(IDB_BACKUP_STORE).get('backup');
+    const data = await new Promise((res, rej) => { req.onsuccess = () => res(req.result); req.onerror = rej; });
+    db.close();
+    if (!data || (!data.meals && !data.plan)) return false;
+    if (data.meals)    localStorage.setItem(MEALS_KEY,  JSON.stringify(data.meals));
+    if (data.plan)     localStorage.setItem(PLAN_KEY,   JSON.stringify(data.plan));
+    if (data.catOrder) localStorage.setItem(ORDER_KEY,  JSON.stringify(data.catOrder));
+    if (data.userCats != null) localStorage.setItem(USER_CATS_KEY, JSON.stringify(data.userCats));
+    if (data.shopList) localStorage.setItem(SHOP_KEY,   JSON.stringify(data.shopList));
+    return true;
+  } catch (e) { console.warn('IDB restore failed:', e); return false; }
+}
 
 /* ---- File System Access API – auto-save to JSON file ---- */
 function buildStateJSON() {
@@ -1589,7 +1642,7 @@ function loadCatOrder() {
   try { const r=localStorage.getItem(ORDER_KEY); if(r) return JSON.parse(r); } catch(e){}
   return [...allCategories()];
 }
-function saveCatOrder(o) { pushUndo(); localStorage.setItem(ORDER_KEY, JSON.stringify(o)); if (fileHandle) flushToFile(); }
+function saveCatOrder(o) { pushUndo(); localStorage.setItem(ORDER_KEY, JSON.stringify(o)); flushToIDB(); if (fileHandle) flushToFile(); }
 
 function ensureCatOrder() {
   // Append any new categories (from shopItems) that aren't in the saved order yet
@@ -2060,6 +2113,7 @@ function importData() {
             renderShopList();
             // Refresh planner if active
             if (!document.getElementById('tab-planner').classList.contains('hidden')) renderPlanner();
+            flushToIDB();
             const mealCount = (data.meals?.meals || data.meals || []).length;
             alert('Import successful! ' + mealCount + ' meals loaded.');
           }
@@ -2094,6 +2148,19 @@ function init() {
   shopCatOrder = loadCatOrder();
   shopItems = loadShopList();
   if (shopItems.length) lastGenMealIds = new Set(getPlannedIds());
+
+  // Auto-restore from IndexedDB if localStorage was purged (common on iOS PWA)
+  const hasUserData = localStorage.getItem(MEALS_KEY) || localStorage.getItem(PLAN_KEY);
+  if (!hasUserData) {
+    restoreFromIDB().then(restored => {
+      if (restored) {
+        meals = loadMeals(); plan = loadPlan(); shopCatOrder = loadCatOrder();
+        userCats = loadUserCats(); shopItems = loadShopList();
+        if (shopItems.length) lastGenMealIds = new Set(getPlannedIds());
+        renderAll();
+      }
+    });
+  }
 
   // Tab buttons
   document.querySelectorAll('.tab-btn').forEach(b => b.addEventListener('click',()=>switchTab(b.dataset.tab)));
@@ -2145,7 +2212,6 @@ function init() {
 
   // Detect fresh PWA launch (home screen app) with no user data — prompt to import
   const isStandalone = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
-  const hasUserData = localStorage.getItem(MEALS_KEY) || localStorage.getItem(PLAN_KEY);
   if (isStandalone && !hasUserData) {
     modal({
       title: 'Welcome!',
