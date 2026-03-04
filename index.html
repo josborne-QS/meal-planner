@@ -402,6 +402,76 @@
         padding-right: env(safe-area-inset-right);
       }
     }
+    /* ================================================================
+       RECIPE VIEW
+    ================================================================ */
+    .recipe-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,.5);
+      z-index: 10000; display: flex; align-items: flex-start;
+      justify-content: center; padding: 24px 16px;
+      overflow-y: auto; -webkit-overflow-scrolling: touch;
+    }
+    .recipe-panel {
+      background: white; border-radius: 12px; padding: 24px;
+      max-width: 600px; width: 100%;
+      box-shadow: 0 8px 32px rgba(0,0,0,.25);
+      margin: auto;
+    }
+    .recipe-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 18px;
+    }
+    .recipe-header h2 { font-size: 20px; font-weight: 700; margin: 0; }
+    .recipe-close {
+      background: none; border: none; font-size: 22px; cursor: pointer;
+      color: var(--text-light); padding: 4px 8px; line-height: 1;
+    }
+    .recipe-close:hover { color: var(--text); }
+    .recipe-section { margin-bottom: 14px; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+    .recipe-section-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 14px; cursor: pointer; background: var(--panel);
+      font-weight: 600; font-size: 14px; user-select: none;
+    }
+    .recipe-section-header:hover { background: var(--accent-light); }
+    .recipe-section-toggle { font-size: 12px; color: var(--text-light); transition: transform .15s; }
+    .recipe-section.collapsed .recipe-section-toggle { transform: rotate(-90deg); }
+    .recipe-section.collapsed .recipe-section-body { display: none; }
+    .recipe-section-body { padding: 10px 14px; }
+    .recipe-ing { font-size: 14px; padding: 4px 0; color: var(--text); }
+    .recipe-notes { font-size: 14px; color: var(--text); white-space: pre-wrap; }
+    .recipe-step {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 8px 0; font-size: 14px; cursor: pointer;
+      transition: opacity .15s, color .15s;
+    }
+    .recipe-step input[type="checkbox"] { margin-top: 2px; flex-shrink: 0; width: 18px; height: 18px; cursor: pointer; }
+    .recipe-step.done .recipe-step-text { text-decoration: line-through; color: var(--text-muted); }
+    .recipe-step-num { font-weight: 700; color: var(--accent); min-width: 22px; }
+    .recipe-step-text { flex: 1; }
+    .recipe-empty { font-size: 13px; color: var(--text-muted); font-style: italic; }
+    .recipe-bottom { margin-top: 16px; text-align: center; }
+    .recipe-edit-textarea { margin-bottom: 10px; }
+    .recipe-edit-toggle { margin-right: 8px; }
+
+    textarea {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 14px;
+      font-family: inherit;
+      color: var(--text);
+      background: white;
+      outline: none;
+      resize: vertical;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    textarea:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 2px rgba(42,157,143,.15);
+    }
+
   </style>
 </head>
 <body>
@@ -469,6 +539,11 @@
           <div class="field-group">
             <label class="field-label">Notes</label>
             <input type="text" id="editor-notes" placeholder="Optional notes...">
+          </div>
+
+          <div class="field-group">
+            <label class="field-label">Instructions</label>
+            <textarea id="editor-instructions" rows="6" placeholder="Enter cooking steps, one per line..."></textarea>
           </div>
 
           <div class="editor-actions">
@@ -570,7 +645,7 @@
 /* =====================================================================
    VERSION — change this to update the version shown in the Data tab
 ===================================================================== */
-const APP_VERSION = 'v1.0';
+const APP_VERSION = 'v1.1';
 
 /* =====================================================================
    COMMON INGREDIENTS DATA
@@ -1179,6 +1254,133 @@ function modal({ title, body, extra, okText, okClass, onOk }) {
 }
 
 /* =====================================================================
+   RECIPE VIEW
+===================================================================== */
+function showRecipe(meal) {
+  const ov = document.createElement('div'); ov.className='recipe-overlay';
+  const panel = document.createElement('div'); panel.className='recipe-panel';
+
+  // Header
+  const header = document.createElement('div'); header.className='recipe-header';
+  const h2 = document.createElement('h2'); h2.textContent = meal.name || '(unnamed)';
+  const closeBtn = document.createElement('button'); closeBtn.className='recipe-close'; closeBtn.innerHTML='&#x2715;';
+  header.appendChild(h2); header.appendChild(closeBtn);
+  panel.appendChild(header);
+
+  function makeSection(title, buildBody, startCollapsed) {
+    const sec = document.createElement('div'); sec.className='recipe-section'+(startCollapsed?' collapsed':'');
+    const hdr = document.createElement('div'); hdr.className='recipe-section-header';
+    const lbl = document.createElement('span'); lbl.textContent=title;
+    const toggle = document.createElement('span'); toggle.className='recipe-section-toggle'; toggle.textContent='\u25BC';
+    hdr.appendChild(lbl); hdr.appendChild(toggle);
+    hdr.addEventListener('click', ()=>sec.classList.toggle('collapsed'));
+    sec.appendChild(hdr);
+    const body = document.createElement('div'); body.className='recipe-section-body';
+    buildBody(body);
+    sec.appendChild(body);
+    return sec;
+  }
+
+  // Ingredients section
+  panel.appendChild(makeSection('Ingredients', body => {
+    const ings = meal.ingredients || [];
+    if (!ings.length) { const e=document.createElement('div'); e.className='recipe-empty'; e.textContent='No ingredients.'; body.appendChild(e); return; }
+    for (const ing of ings) {
+      const line = document.createElement('div'); line.className='recipe-ing';
+      const parts = [];
+      if (ing.quantity) parts.push(ing.quantity);
+      if (ing.unit) parts.push(ing.unit);
+      parts.push(ing.name);
+      line.textContent = parts.join(' ');
+      body.appendChild(line);
+    }
+  }, false));
+
+  // Notes section (editable)
+  const notesTA = document.createElement('textarea');
+  notesTA.className='recipe-edit-textarea'; notesTA.rows=3;
+  notesTA.placeholder='Add notes...';
+  notesTA.value = meal.notes || '';
+  panel.appendChild(makeSection('Notes', body => { body.appendChild(notesTA); }, false));
+
+  // Instructions section (editable + step checklist)
+  const instrTA = document.createElement('textarea');
+  instrTA.className='recipe-edit-textarea'; instrTA.rows=6;
+  instrTA.placeholder='Enter cooking steps, one per line...';
+  instrTA.value = meal.instructions || '';
+  const stepsContainer = document.createElement('div'); stepsContainer.className='recipe-steps-list';
+
+  function renderSteps() {
+    stepsContainer.innerHTML = '';
+    const raw = instrTA.value.trim();
+    const steps = raw ? raw.split('\n').filter(s=>s.trim()) : [];
+    if (!steps.length) { const e=document.createElement('div'); e.className='recipe-empty'; e.textContent='No instructions added yet.'; stepsContainer.appendChild(e); return; }
+    steps.forEach((step, i) => {
+      const row = document.createElement('div'); row.className='recipe-step';
+      const cb = document.createElement('input'); cb.type='checkbox';
+      const num = document.createElement('span'); num.className='recipe-step-num'; num.textContent=(i+1)+'.';
+      const txt = document.createElement('span'); txt.className='recipe-step-text'; txt.textContent=step.trim();
+      cb.addEventListener('change', ()=>row.classList.toggle('done', cb.checked));
+      row.appendChild(cb); row.appendChild(num); row.appendChild(txt);
+      stepsContainer.appendChild(row);
+    });
+  }
+
+  let editMode = false;
+  const editToggle = document.createElement('button'); editToggle.className='btn btn-xs btn-secondary recipe-edit-toggle';
+  editToggle.textContent='Edit';
+
+  panel.appendChild(makeSection('Instructions', body => {
+    editToggle.addEventListener('click', e => {
+      e.stopPropagation();
+      editMode = !editMode;
+      instrTA.classList.toggle('hidden', !editMode);
+      editToggle.textContent = editMode ? 'Done' : 'Edit';
+      if (!editMode) renderSteps();
+    });
+    instrTA.classList.add('hidden');
+    body.appendChild(instrTA);
+    body.appendChild(stepsContainer);
+    renderSteps();
+  }, false));
+
+  // Insert edit toggle into instructions section header
+  const instrHeader = panel.querySelectorAll('.recipe-section-header');
+  instrHeader[instrHeader.length-1].insertBefore(editToggle, instrHeader[instrHeader.length-1].querySelector('.recipe-section-toggle'));
+
+  // Save & close helper
+  function saveAndClose() {
+    const idx = meals.findIndex(m=>m.id===meal.id);
+    if (idx >= 0) {
+      meal.notes = notesTA.value.trim();
+      meal.instructions = instrTA.value.trim();
+      meals[idx] = meal;
+      saveMeals(meals);
+      // Sync editor if it's open for this meal
+      if (selId === meal.id) {
+        document.getElementById('editor-notes').value = meal.notes;
+        document.getElementById('editor-instructions').value = meal.instructions;
+        editorSnapshot = editorStateString();
+      }
+    }
+    ov.remove();
+  }
+
+  // Bottom close button
+  const bottom = document.createElement('div'); bottom.className='recipe-bottom';
+  const closeBottom = document.createElement('button'); closeBottom.className='btn btn-secondary';
+  closeBottom.textContent='Close'; closeBottom.addEventListener('click', saveAndClose);
+  bottom.appendChild(closeBottom);
+  panel.appendChild(bottom);
+
+  closeBtn.addEventListener('click', saveAndClose);
+
+  ov.appendChild(panel);
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e=>{ if(e.target===ov) saveAndClose(); });
+}
+
+/* =====================================================================
    MEAL DIRECTORY — helpers
 ===================================================================== */
 function ingSuggestions() {
@@ -1226,6 +1428,9 @@ function renderMealList() {
     item.appendChild(left);
     const btns = document.createElement('span');
     btns.style.cssText='display:flex;gap:6px;flex-shrink:0;';
+    const recipe = document.createElement('button'); recipe.className='btn-reorder btn-reorder-wide'; recipe.innerHTML='&#x1F4D6;'; recipe.title='View recipe';
+    recipe.addEventListener('click', e=>{e.stopPropagation(); showRecipe(meal);});
+    btns.appendChild(recipe);
     const edit = document.createElement('button'); edit.className='btn-reorder btn-reorder-wide'; edit.innerHTML='&#x270E;'; edit.title='Edit meal';
     edit.addEventListener('click', ()=>openMeal(meal.id));
     btns.appendChild(edit);
@@ -1248,7 +1453,7 @@ let editorSnapshot = null; // JSON string of editor state when opened
 
 function editorStateString() {
   const data = collectEditor();
-  return JSON.stringify(data || {name:'',ingredients:[],notes:''});
+  return JSON.stringify(data || {name:'',ingredients:[],notes:'',instructions:''});
 }
 
 function isEditorDirty() {
@@ -1293,6 +1498,7 @@ function showEditor(meal) {
   document.getElementById('meal-editor').classList.remove('hidden');
   document.getElementById('editor-name').value  = meal.name  || '';
   document.getElementById('editor-notes').value = meal.notes || '';
+  document.getElementById('editor-instructions').value = meal.instructions || '';
   document.getElementById('dir-status').textContent = '';
   const ingList = document.getElementById('ing-list');
   ingList.innerHTML = '';
@@ -1398,7 +1604,7 @@ function collectEditor() {
       category: row.querySelector('.ing-cat input')?.value.trim()||'',
     });
   }
-  return { name, ingredients:ings, notes: document.getElementById('editor-notes').value.trim() };
+  return { name, ingredients:ings, notes: document.getElementById('editor-notes').value.trim(), instructions: document.getElementById('editor-instructions').value.trim() };
 }
 
 /* =====================================================================
@@ -1410,7 +1616,7 @@ function newMeal() {
   const doNew = () => {
     isNewMeal = true;
     selId = null;
-    showEditor({name:'', ingredients:[], notes:''});
+    showEditor({name:'', ingredients:[], notes:'', instructions:''});
     renderMealList();
     document.getElementById('tab-directory').classList.add('editing');
     document.getElementById('editor-name').focus();
