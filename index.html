@@ -556,7 +556,10 @@
             <button class="btn btn-primary btn-sm" id="btn-add-cat">Add</button>
           </div>
         </div>
-        <p style="font-size:12px;color:var(--text-muted);margin-top:8px;" id="app-version"></p>
+        <div style="margin-top:8px;display:flex;align-items:center;justify-content:center;gap:8px;">
+          <p style="font-size:12px;color:var(--text-muted);margin:0;" id="app-version"></p>
+          <button class="btn btn-secondary btn-xs" id="btn-check-update">Check for Update</button>
+        </div>
       </div>
     </div>
 
@@ -2133,6 +2136,31 @@ function importData() {
   input.click();
 }
 
+async function checkForUpdate() {
+  const btn = document.getElementById('btn-check-update');
+  if (btn) btn.textContent = 'Checking...';
+  try {
+    if ('serviceWorker' in navigator) {
+      const reg = await navigator.serviceWorker.getRegistration();
+      if (reg) {
+        await reg.update();
+        if (reg.waiting) {
+          reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+        }
+      }
+    }
+    // Also clear the cache so the next load fetches fresh files
+    const keys = await caches.keys();
+    await Promise.all(keys.map(k => caches.delete(k)));
+    if (btn) btn.textContent = 'Reloading...';
+    location.reload();
+  } catch (e) {
+    console.warn('Update check failed:', e);
+    if (btn) btn.textContent = 'Check for Update';
+    alert('Update check failed. Try closing and reopening the app.');
+  }
+}
+
 /* =====================================================================
    INIT
 ===================================================================== */
@@ -2191,6 +2219,7 @@ function init() {
 
   // Export / Import
   document.getElementById('btn-export-data').addEventListener('click', exportData);
+  document.getElementById('btn-check-update').addEventListener('click', checkForUpdate);
   document.getElementById('btn-import-data').addEventListener('click', importData);
 
   // Custom categories
