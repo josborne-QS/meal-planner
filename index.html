@@ -556,6 +556,7 @@
             <button class="btn btn-primary btn-sm" id="btn-add-cat">Add</button>
           </div>
         </div>
+        <p style="font-size:12px;color:var(--text-muted);margin-top:8px;" id="app-version"></p>
       </div>
     </div>
 
@@ -563,6 +564,11 @@
 </div>
 
 <script>
+/* =====================================================================
+   VERSION — change this to update the version shown in the Data tab
+===================================================================== */
+const APP_VERSION = 'v1.0';
+
 /* =====================================================================
    COMMON INGREDIENTS DATA
 ===================================================================== */
@@ -2132,6 +2138,8 @@ function importData() {
 ===================================================================== */
 function init() {
   setupIcons();
+  const verEl = document.getElementById('app-version');
+  if (verEl) verEl.textContent = APP_VERSION;
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js').catch(() => {});
   }
