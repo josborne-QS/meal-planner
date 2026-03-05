@@ -16,6 +16,11 @@ self.addEventListener('activate', e => {
 });
 
 self.addEventListener('fetch', e => {
+  // Skip caching for external API calls (e.g. Claude API)
+  if (!e.request.url.startsWith(self.location.origin)) {
+    e.respondWith(fetch(e.request));
+    return;
+  }
   e.respondWith(
     // Try network first — so updates show immediately when online
     fetch(e.request)

@@ -189,7 +189,7 @@
     .meal-list-empty { color: var(--text-muted); font-size: 13px; padding: 16px 10px; text-align: center; }
 
     /* Editor panel */
-    .dir-right { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; position: relative; }
+    .dir-right { display: none; flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; position: relative; }
     .back-btn {
       display: none;
       align-items: center; gap: 4px;
@@ -487,6 +487,69 @@
       box-shadow: 0 0 0 2px rgba(42,157,143,.15);
     }
 
+    /* ================================================================
+       AI RECIPE PARSER
+    ================================================================ */
+    .ai-key-row {
+      display: flex; align-items: center; gap: 6px; margin-bottom: 8px;
+    }
+    .ai-key-row input { flex: 1; min-width: 0; }
+    .ai-status { font-size: 12px; min-height: 18px; margin-top: 4px; }
+
+    .ai-parse-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,.5);
+      z-index: 10000; display: flex; align-items: flex-start;
+      justify-content: center; padding: 24px 16px;
+      overflow-y: auto; -webkit-overflow-scrolling: touch;
+    }
+    .ai-parse-panel {
+      background: white; border-radius: 12px; padding: 24px;
+      max-width: 540px; width: 100%;
+      box-shadow: 0 8px 32px rgba(0,0,0,.25);
+      margin: auto;
+    }
+    .ai-parse-panel h3 { font-size: 16px; font-weight: 700; margin-bottom: 12px; }
+    .ai-parse-panel textarea { min-height: 180px; margin-bottom: 12px; }
+    .ai-parse-actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; flex-shrink: 0; }
+    .ai-spinner {
+      display: inline-block; width: 16px; height: 16px;
+      border: 2px solid rgba(255,255,255,.3); border-top-color: white;
+      border-radius: 50%; animation: ai-spin .6s linear infinite;
+      vertical-align: middle; margin-right: 6px;
+    }
+    @keyframes ai-spin { to { transform: rotate(360deg); } }
+    .ai-parse-error { font-size: 13px; color: var(--danger); margin-top: 8px; }
+
+    @media (max-width: 640px) {
+      .ai-parse-panel { max-width: 100%; padding: 18px; }
+      .ai-parse-panel textarea { font-size: 16px; }
+    }
+
+    /* ---- AI Generate ---- */
+    .ai-gen-panel {
+      background: white; border-radius: 12px; padding: 24px;
+      max-width: 560px; width: 100%;
+      box-shadow: 0 8px 32px rgba(0,0,0,.25);
+      margin: auto; display: flex; flex-direction: column;
+      max-height: calc(100vh - 48px);
+    }
+    .ai-gen-panel h3 { font-size: 16px; font-weight: 700; margin-bottom: 12px; flex-shrink: 0; }
+    .ai-gen-filters { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; flex-shrink: 0; }
+    .ai-gen-filters select { flex: 1; min-width: 120px; font-size: 14px; }
+    .ai-gen-results { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; }
+    .ai-gen-card {
+      border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px;
+      background: var(--panel); transition: opacity .2s;
+    }
+    .ai-gen-card.added { opacity: .45; pointer-events: none; }
+    .ai-gen-card-name { font-weight: 700; font-size: 14px; margin-bottom: 4px; }
+    .ai-gen-card-meta { font-size: 12px; color: var(--text-light); margin-bottom: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .ai-gen-card-actions { display: flex; gap: 6px; }
+    @media (max-width: 640px) {
+      .ai-gen-panel { max-width: 100%; padding: 18px; }
+      .ai-gen-panel textarea { font-size: 16px; }
+    }
+
   </style>
 </head>
 <body>
@@ -514,7 +577,11 @@
       <div class="dir-left">
         <div class="dir-left-header">
           <h2>Meals</h2>
-          <button class="btn btn-primary btn-sm" id="btn-new-meal">+ New</button>
+          <div style="display:flex;gap:6px;">
+            <button class="btn btn-secondary btn-sm hidden" id="btn-ai-parse">AI Parse</button>
+            <button class="btn btn-secondary btn-sm hidden" id="btn-ai-generate">AI Generate</button>
+            <button class="btn btn-primary btn-sm" id="btn-new-meal">+ New</button>
+          </div>
         </div>
         <div class="dir-search">
           <input type="text" id="meal-search" placeholder="Search meals...">
@@ -653,6 +720,16 @@
             <button class="btn btn-primary btn-sm" id="btn-add-cat">Add</button>
           </div>
         </div>
+        <div class="data-card">
+          <h3>AI Features</h3>
+          <p>Enter a Claude API key to enable AI Parse and AI Generate</p>
+          <div class="ai-key-row">
+            <input type="password" id="ai-key-input" placeholder="sk-ant-..." style="flex:1;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:14px;font-family:inherit;color:var(--text);background:white;outline:none;">
+            <button class="btn btn-primary btn-sm" id="btn-save-ai-key">Save Key</button>
+            <button class="btn btn-danger btn-sm hidden" id="btn-clear-ai-key">Remove</button>
+          </div>
+          <div class="ai-status" id="ai-key-status"></div>
+        </div>
       </div>
     </div>
 
@@ -663,7 +740,7 @@
 /* =====================================================================
    VERSION — change this to update the version shown in the Data tab
 ===================================================================== */
-const APP_VERSION = 'v1.3';
+const APP_VERSION = 'v1.4';
 
 /* =====================================================================
    COMMON INGREDIENTS DATA
@@ -1316,9 +1393,12 @@ function showRecipe(meal) {
 
   // Notes section (editable)
   const notesTA = document.createElement('textarea');
-  notesTA.className='recipe-edit-textarea'; notesTA.rows=3;
+  notesTA.className='recipe-edit-textarea'; notesTA.rows=2;
   notesTA.placeholder='Add notes...';
   notesTA.value = meal.notes || '';
+  notesTA.style.overflow = 'hidden';
+  function autoSizeNotes() { notesTA.style.height='auto'; notesTA.style.height=notesTA.scrollHeight+'px'; }
+  notesTA.addEventListener('input', autoSizeNotes);
   panel.appendChild(makeSection('Notes', body => { body.appendChild(notesTA); }, false));
 
   // Instructions section (editable + step checklist)
@@ -1395,6 +1475,7 @@ function showRecipe(meal) {
 
   ov.appendChild(panel);
   document.body.appendChild(ov);
+  autoSizeNotes();
   ov.addEventListener('click', e=>{ if(e.target===ov) saveAndClose(); });
 }
 
@@ -2389,6 +2470,437 @@ async function checkForUpdate() {
 }
 
 /* =====================================================================
+   AI RECIPE PARSER
+===================================================================== */
+const AI_KEY_KEY   = 'mplanner_ai_apikey';
+const AI_MODEL_KEY = 'mplanner_ai_model';
+
+function loadAIKey()   { return localStorage.getItem(AI_KEY_KEY) || ''; }
+function saveAIKey(k)  { localStorage.setItem(AI_KEY_KEY, k); }
+function clearAIKey()  { localStorage.removeItem(AI_KEY_KEY); }
+function loadAIModel() { return localStorage.getItem(AI_MODEL_KEY) || 'claude-haiku-4-5-20251001'; }
+function saveAIModel(m){ localStorage.setItem(AI_MODEL_KEY, m); }
+
+const AI_GEN_MODEL_KEY = 'mplanner_ai_gen_model';
+function loadAIGenModel() { return localStorage.getItem(AI_GEN_MODEL_KEY) || 'claude-sonnet-4-6'; }
+function saveAIGenModel(m){ localStorage.setItem(AI_GEN_MODEL_KEY, m); }
+
+const AI_GEN_INSTRUCTIONS_KEY = 'mplanner_ai_gen_instructions';
+function loadAIGenInstructions() { return localStorage.getItem(AI_GEN_INSTRUCTIONS_KEY) || ''; }
+function saveAIGenInstructions(t){ localStorage.setItem(AI_GEN_INSTRUCTIONS_KEY, t); }
+
+function updateAIKeyUI() {
+  const hasKey = !!loadAIKey();
+  const inp    = document.getElementById('ai-key-input');
+  const btnSave  = document.getElementById('btn-save-ai-key');
+  const btnClear = document.getElementById('btn-clear-ai-key');
+  const btnParse = document.getElementById('btn-ai-parse');
+  const btnGen   = document.getElementById('btn-ai-generate');
+  const status   = document.getElementById('ai-key-status');
+  if (hasKey) {
+    inp.value = '••••••••••••••••';
+    inp.disabled = true;
+    btnSave.classList.add('hidden');
+    btnClear.classList.remove('hidden');
+    btnParse.classList.remove('hidden');
+    btnGen.classList.remove('hidden');
+    status.textContent = 'Key saved';
+    status.className = 'ai-status status-ok';
+  } else {
+    inp.value = '';
+    inp.disabled = false;
+    btnSave.classList.remove('hidden');
+    btnClear.classList.add('hidden');
+    btnParse.classList.add('hidden');
+    btnGen.classList.add('hidden');
+    status.textContent = '';
+    status.className = 'ai-status';
+  }
+}
+
+async function validateAIKey(key) {
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'x-api-key': key,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true',
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 1,
+      messages: [{ role: 'user', content: 'hi' }],
+    }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error?.message || `API error ${res.status}`);
+  }
+}
+
+async function handleSaveKey() {
+  const inp = document.getElementById('ai-key-input');
+  const status = document.getElementById('ai-key-status');
+  const key = inp.value.trim();
+  if (!key.startsWith('sk-ant-')) {
+    status.textContent = 'Key must start with sk-ant-';
+    status.className = 'ai-status status-err';
+    return;
+  }
+  status.textContent = 'Validating...';
+  status.className = 'ai-status';
+  try {
+    await validateAIKey(key);
+    saveAIKey(key);
+    updateAIKeyUI();
+  } catch (e) {
+    status.textContent = 'Invalid key: ' + e.message;
+    status.className = 'ai-status status-err';
+  }
+}
+
+function handleClearKey() {
+  modal({
+    title: 'Remove API Key?',
+    body: 'This will remove your saved Claude API key. You can add a new one later.',
+    okText: 'Remove', okClass: 'btn-danger',
+    onOk: () => { clearAIKey(); updateAIKeyUI(); }
+  });
+}
+
+function openParseRecipeModal() {
+  if (!loadAIKey()) {
+    switchTab('data');
+    const status = document.getElementById('ai-key-status');
+    status.textContent = 'Please save an API key first';
+    status.className = 'ai-status status-err';
+    return;
+  }
+  const ov = document.createElement('div'); ov.className = 'ai-parse-overlay';
+  const panel = document.createElement('div'); panel.className = 'ai-parse-panel';
+  panel.innerHTML = `
+    <h3>AI Recipe Parser</h3>
+    <textarea id="ai-recipe-text" placeholder="Paste recipe text here (from a website, cookbook, etc.)..." rows="10"></textarea>
+    <div style="margin-bottom:10px;">
+      <select id="ai-parse-model" style="font-size:14px;">
+        <option value="claude-haiku-4-5-20251001">Haiku 4.5 (fastest)</option>
+        <option value="claude-sonnet-4-6">Sonnet 4.6</option>
+        <option value="claude-opus-4-6">Opus 4.6 (best)</option>
+      </select>
+    </div>
+    <div class="ai-parse-actions">
+      <button class="btn btn-secondary" id="ai-parse-cancel">Cancel</button>
+      <button class="btn btn-primary" id="ai-parse-go">Parse Recipe</button>
+    </div>
+    <div class="ai-parse-error" id="ai-parse-error"></div>
+  `;
+  ov.appendChild(panel);
+  document.body.appendChild(ov);
+  const parseModelSel = panel.querySelector('#ai-parse-model');
+  parseModelSel.value = loadAIModel();
+  parseModelSel.addEventListener('change', () => saveAIModel(parseModelSel.value));
+  ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
+  panel.querySelector('#ai-parse-cancel').addEventListener('click', () => ov.remove());
+  panel.querySelector('#ai-parse-go').addEventListener('click', async () => {
+    const text = panel.querySelector('#ai-recipe-text').value.trim();
+    if (!text) return;
+    const goBtn = panel.querySelector('#ai-parse-go');
+    const errDiv = panel.querySelector('#ai-parse-error');
+    goBtn.disabled = true;
+    goBtn.innerHTML = '<span class="ai-spinner"></span>Parsing...';
+    errDiv.textContent = '';
+    try {
+      const mealData = await callClaudeForRecipe(text);
+      ov.remove();
+      loadParsedRecipeIntoEditor(mealData);
+    } catch (e) {
+      errDiv.textContent = e.message;
+      goBtn.disabled = false;
+      goBtn.textContent = 'Parse Recipe';
+    }
+  });
+}
+
+async function callClaudeForRecipe(recipeText) {
+  const key = loadAIKey();
+  const model = loadAIModel();
+  const categories = allCategories();
+  const systemPrompt = `You are a recipe parser. Extract structured meal data from the user's recipe text.
+Return ONLY valid JSON (no code fences, no explanation) matching this schema:
+{
+  "name": "string — the recipe name",
+  "ingredients": [
+    { "name": "string", "quantity": "string (decimal number or empty)", "unit": "string", "category": "string" }
+  ],
+  "notes": "string — brief tips, prep notes, or serving info (optional, can be empty)",
+  "instructions": "string — cooking steps, one per line"
+}
+
+Rules:
+- Convert fractions to decimals (1/2 → 0.5, 1/4 → 0.25, 3/4 → 0.75, 1/3 → 0.33, 2/3 → 0.67)
+- Valid units: ${JSON.stringify(COMMON_UNITS)}
+- If a unit is not in the list, pick the closest match or leave empty
+- Valid categories: ${JSON.stringify(categories)}
+- Assign each ingredient to the most appropriate category from the list
+- Strip ads, stories, and irrelevant content — only extract the recipe
+- If quantity is unclear, leave it as empty string
+- The instructions field should have each step on its own line`;
+
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'x-api-key': key,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true',
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      model,
+      max_tokens: 2048,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: recipeText }],
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    if (res.status === 401) throw new Error('Invalid API key. Please update your key in the Data tab.');
+    if (res.status === 429) throw new Error('Rate limited. Please wait a moment and try again.');
+    if (res.status === 529) throw new Error('Claude is overloaded. Please try again shortly.');
+    throw new Error(err.error?.message || `API error ${res.status}`);
+  }
+
+  const data = await res.json();
+  let text = (data.content?.[0]?.text || '').trim();
+  // Strip code fences if present
+  text = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '');
+
+  let meal;
+  try { meal = JSON.parse(text); } catch { throw new Error('Claude returned invalid JSON. Please try again.'); }
+
+  // Sanitize
+  meal.name = String(meal.name || '').trim();
+  meal.notes = String(meal.notes || '').trim();
+  meal.instructions = String(meal.instructions || '').trim();
+  if (!Array.isArray(meal.ingredients)) meal.ingredients = [];
+  meal.ingredients = meal.ingredients.map(ing => ({
+    name: String(ing.name || '').trim(),
+    quantity: String(ing.quantity ?? '').trim(),
+    unit: String(ing.unit || '').trim(),
+    category: String(ing.category || '').trim(),
+  })).filter(ing => ing.name);
+
+  if (!meal.name && meal.ingredients.length === 0) {
+    throw new Error('Could not extract a recipe from that text. Try pasting more detail.');
+  }
+  return meal;
+}
+
+function loadParsedRecipeIntoEditor(mealData) {
+  isNewMeal = true;
+  selId = null;
+  showEditor(mealData);
+  renderMealList();
+  document.getElementById('tab-directory').classList.add('editing');
+}
+
+/* =====================================================================
+   AI MEAL GENERATION
+===================================================================== */
+function openGenerateModal() {
+  if (!loadAIKey()) {
+    switchTab('data');
+    const status = document.getElementById('ai-key-status');
+    status.textContent = 'Please save an API key first';
+    status.className = 'ai-status status-err';
+    return;
+  }
+  const ov = document.createElement('div'); ov.className = 'ai-parse-overlay';
+  const panel = document.createElement('div'); panel.className = 'ai-gen-panel';
+  panel.innerHTML = `
+    <h3>AI Meal Generator</h3>
+    <label style="font-size:12px;color:var(--text-light);">Custom instructions (included in every prompt)</label>
+    <textarea id="ai-gen-instructions" rows="2" placeholder="e.g. Always include recommended internal cook temps for meat, and list the quantity of ingredients used in each step" style="width:100%;margin-top:4px;margin-bottom:10px;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:inherit;color:var(--text);background:var(--panel);outline:none;resize:vertical;"></textarea>
+    <textarea id="ai-gen-prompt" placeholder="Describe what you'd like... (e.g. quick chicken dinner, vegetarian pasta for 4)" rows="3" style="margin-bottom:12px;width:100%;"></textarea>
+    <div class="ai-gen-filters">
+      <select id="ai-gen-cuisine">
+        <option value="">Cuisine (any)</option>
+        <option>Italian</option><option>Mexican</option><option>Asian</option><option>Indian</option>
+        <option>Mediterranean</option><option>American</option><option>French</option><option>Japanese</option><option>Thai</option><option>Other</option>
+      </select>
+      <select id="ai-gen-diet">
+        <option value="">Diet (any)</option>
+        <option>Vegetarian</option><option>Vegan</option><option>Gluten-Free</option><option>Dairy-Free</option><option>Low-Carb</option><option>Keto</option>
+      </select>
+      <select id="ai-gen-count">
+        <option value="1">1 recipe</option><option value="2">2 recipes</option><option value="3" selected>3 recipes</option><option value="4">4 recipes</option><option value="5">5 recipes</option>
+      </select>
+      <select id="ai-gen-model">
+        <option value="claude-haiku-4-5-20251001">Haiku 4.5 (fastest)</option>
+        <option value="claude-sonnet-4-6">Sonnet 4.6</option>
+        <option value="claude-opus-4-6">Opus 4.6 (best)</option>
+      </select>
+    </div>
+    <div class="ai-parse-actions">
+      <button class="btn btn-secondary" id="ai-gen-cancel">Cancel</button>
+      <button class="btn btn-primary" id="ai-gen-go">Generate</button>
+    </div>
+    <div class="ai-parse-error" id="ai-gen-error"></div>
+  `;
+  ov.appendChild(panel);
+  document.body.appendChild(ov);
+  const modelSel = panel.querySelector('#ai-gen-model');
+  modelSel.value = loadAIGenModel();
+  modelSel.addEventListener('change', () => saveAIGenModel(modelSel.value));
+  const instrEl = panel.querySelector('#ai-gen-instructions');
+  instrEl.value = loadAIGenInstructions();
+  instrEl.addEventListener('input', () => saveAIGenInstructions(instrEl.value));
+  ov._hasResults = false;
+  ov.addEventListener('click', e => { if (e.target === ov && !ov._hasResults) ov.remove(); });
+  panel.querySelector('#ai-gen-cancel').addEventListener('click', () => ov.remove());
+  panel.querySelector('#ai-gen-go').addEventListener('click', async () => {
+    const prompt = panel.querySelector('#ai-gen-prompt').value.trim();
+    if (!prompt) return;
+    const cuisine = panel.querySelector('#ai-gen-cuisine').value;
+    const diet = panel.querySelector('#ai-gen-diet').value;
+    const count = parseInt(panel.querySelector('#ai-gen-count').value, 10);
+    const goBtn = panel.querySelector('#ai-gen-go');
+    const errDiv = panel.querySelector('#ai-gen-error');
+    goBtn.disabled = true;
+    goBtn.innerHTML = '<span class="ai-spinner"></span>Generating...';
+    errDiv.textContent = '';
+    try {
+      const generated = await callClaudeForGeneration(prompt, { cuisine, diet }, count);
+      showGenerationResults(generated, ov, panel);
+    } catch (e) {
+      errDiv.textContent = e.message;
+      goBtn.disabled = false;
+      goBtn.textContent = 'Generate';
+    }
+  });
+}
+
+async function callClaudeForGeneration(prompt, filters, count) {
+  const key = loadAIKey();
+  const model = loadAIGenModel();
+  const categories = allCategories();
+  const systemPrompt = `You are a creative recipe generator. Generate exactly ${count} complete meal recipe(s) based on the user's description.
+Return ONLY a valid JSON array (no code fences, no explanation). Each element must match this schema:
+{
+  "name": "string — the recipe name",
+  "ingredients": [
+    { "name": "string", "quantity": "string (decimal number or empty)", "unit": "string", "category": "string" }
+  ],
+  "notes": "string — brief tips, prep notes, or serving info",
+  "instructions": "string — cooking steps, one per line"
+}
+
+Rules:
+- Generate exactly ${count} distinct recipe(s)
+- Convert fractions to decimals (1/2 → 0.5, 1/4 → 0.25, 3/4 → 0.75, 1/3 → 0.33, 2/3 → 0.67)
+- Valid units: ${JSON.stringify(COMMON_UNITS)}
+- If a unit is not in the list, pick the closest match or leave empty
+- Valid categories: ${JSON.stringify(categories)}
+- Assign each ingredient to the most appropriate category from the list
+- Each recipe should be practical and complete with realistic quantities
+- The instructions field should have each step on its own line`;
+
+  const customInstructions = loadAIGenInstructions().trim();
+  let userMsg = customInstructions ? customInstructions + '\n\n' + prompt : prompt;
+  if (filters.cuisine) userMsg += `\nCuisine: ${filters.cuisine}`;
+  if (filters.diet) userMsg += `\nDietary preference: ${filters.diet}`;
+
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'x-api-key': key,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true',
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      model,
+      max_tokens: 4096,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userMsg }],
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    if (res.status === 401) throw new Error('Invalid API key. Please update your key in the Data tab.');
+    if (res.status === 429) throw new Error('Rate limited. Please wait a moment and try again.');
+    if (res.status === 529) throw new Error('Claude is overloaded. Please try again shortly.');
+    throw new Error(err.error?.message || `API error ${res.status}`);
+  }
+
+  const data = await res.json();
+  let text = (data.content?.[0]?.text || '').trim();
+  text = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '');
+
+  let parsed;
+  try { parsed = JSON.parse(text); } catch { throw new Error('Claude returned invalid JSON. Please try again.'); }
+  if (!Array.isArray(parsed)) parsed = [parsed];
+
+  return parsed.map(r => ({
+    name: String(r.name || '').trim(),
+    notes: String(r.notes || '').trim(),
+    instructions: String(r.instructions || '').trim(),
+    ingredients: (Array.isArray(r.ingredients) ? r.ingredients : []).map(ing => ({
+      name: String(ing.name || '').trim(),
+      quantity: String(ing.quantity ?? '').trim(),
+      unit: String(ing.unit || '').trim(),
+      category: String(ing.category || '').trim(),
+    })).filter(ing => ing.name),
+  })).filter(r => r.name || r.ingredients.length > 0);
+}
+
+function showGenerationResults(results, ov, panel) {
+  ov._hasResults = true;
+  panel.innerHTML = `<h3>Generated ${results.length} recipe${results.length !== 1 ? 's' : ''}</h3>
+    <div class="ai-gen-results" id="ai-gen-results"></div>
+    <div class="ai-parse-actions"><button class="btn btn-secondary" id="ai-gen-close">Close</button></div>`;
+  const container = panel.querySelector('#ai-gen-results');
+  results.forEach((recipe) => {
+    const card = document.createElement('div'); card.className = 'ai-gen-card';
+    const ingCount = recipe.ingredients.length;
+    const notesPreview = recipe.notes ? recipe.notes.substring(0, 80) + (recipe.notes.length > 80 ? '...' : '') : '';
+    card.innerHTML = `
+      <div class="ai-gen-card-name">${recipe.name || 'Untitled Recipe'}</div>
+      <div class="ai-gen-card-meta">${ingCount} ingredient${ingCount !== 1 ? 's' : ''}${notesPreview ? ' — ' + notesPreview : ''}</div>
+      <div class="ai-gen-card-actions">
+        <button class="btn btn-secondary btn-sm ai-gen-preview">Preview</button>
+        <button class="btn btn-primary btn-sm ai-gen-add">Add to Meals</button>
+      </div>`;
+    card.querySelector('.ai-gen-preview').addEventListener('click', () => showRecipe(recipe));
+    card.querySelector('.ai-gen-add').addEventListener('click', () => {
+      absorbNewCats(recipe);
+      const m = { id: uid(), ...recipe };
+      meals = loadMeals();
+      meals.push(m);
+      saveMeals(meals);
+      renderMealList();
+      card.classList.add('added');
+      card.querySelector('.ai-gen-add').textContent = 'Added';
+    });
+    container.appendChild(card);
+  });
+  const tryClose = () => {
+    const allAdded = container.querySelectorAll('.ai-gen-card').length === container.querySelectorAll('.ai-gen-card.added').length;
+    if (allAdded) { ov.remove(); return; }
+    modal({
+      title: 'Discard Recipes?',
+      body: 'Some generated recipes haven\u2019t been added yet. Close anyway?',
+      okText: 'Close', okClass: 'btn-danger',
+      onOk: () => ov.remove()
+    });
+  };
+  panel.querySelector('#ai-gen-close').addEventListener('click', tryClose);
+  ov.addEventListener('click', e => { if (e.target === ov) tryClose(); });
+}
+
+/* =====================================================================
    INIT
 ===================================================================== */
 function init() {
@@ -2456,6 +2968,19 @@ function init() {
   document.getElementById('btn-del-cat').addEventListener('click', deleteCat);
   document.getElementById('btn-edit-cat').addEventListener('click', editCat);
   renderCatManager();
+
+  // AI Recipe Parser
+  document.getElementById('btn-save-ai-key').addEventListener('click', handleSaveKey);
+  document.getElementById('btn-clear-ai-key').addEventListener('click', handleClearKey);
+  document.getElementById('btn-ai-parse').addEventListener('click', () => {
+    if (isEditorDirty()) guardEditorExit(() => { closeEditor(); openParseRecipeModal(); });
+    else openParseRecipeModal();
+  });
+  document.getElementById('btn-ai-generate').addEventListener('click', () => {
+    if (isEditorDirty()) guardEditorExit(() => { closeEditor(); openGenerateModal(); });
+    else { closeEditor(); openGenerateModal(); }
+  });
+  updateAIKeyUI();
 
   // Shopping
   document.getElementById('btn-gen-planner').addEventListener('click', () => { generateList(); switchTab('shopping'); });
