@@ -794,7 +794,7 @@
 /* =====================================================================
    VERSION — change this to update the version shown in the Data tab
 ===================================================================== */
-const APP_VERSION = 'v1.6';
+const APP_VERSION = 'v1.7';
 
 /* =====================================================================
    COMMON INGREDIENTS DATA
@@ -2944,10 +2944,12 @@ async function callClaudeForRecipe(recipeText, fileData) {
   const key = loadAIKey();
   const model = loadAIModel();
   const categories = allCategories();
+  const mealTypes = allMealTypes();
   const systemPrompt = `You are a recipe parser. Extract structured meal data from the user's input (text, image, PDF, or a combination).
 Return ONLY valid JSON (no code fences, no explanation) matching this schema:
 {
   "name": "string — the recipe name",
+  "mealType": "string — the type of meal",
   "ingredients": [
     { "name": "string", "quantity": "string (decimal number or empty)", "unit": "string", "category": "string" }
   ],
@@ -2959,8 +2961,10 @@ Rules:
 - Convert fractions to decimals (1/2 → 0.5, 1/4 → 0.25, 3/4 → 0.75, 1/3 → 0.33, 2/3 → 0.67)
 - Valid units: ${JSON.stringify(COMMON_UNITS)}
 - If a unit is not in the list, pick the closest match or leave empty
-- Valid categories: ${JSON.stringify(categories)}
+- Valid ingredient categories: ${JSON.stringify(categories)}
 - Assign each ingredient to the most appropriate category from the list
+- Valid meal types: ${JSON.stringify(mealTypes)}
+- Assign the meal to the most appropriate meal type from the list
 - Strip ads, stories, and irrelevant content — only extract the recipe
 - If quantity is unclear, leave it as empty string
 - The instructions field should have each step on its own line
@@ -3011,6 +3015,7 @@ Rules:
 
   // Sanitize
   meal.name = String(meal.name || '').trim();
+  meal.mealType = String(meal.mealType || 'Other').trim();
   meal.notes = String(meal.notes || '').trim();
   meal.instructions = String(meal.instructions || '').trim();
   if (!Array.isArray(meal.ingredients)) meal.ingredients = [];
