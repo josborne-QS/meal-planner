@@ -186,6 +186,19 @@
       background: var(--accent); flex-shrink: 0;
     }
     .meal-list-empty { color: var(--text-muted); font-size: 13px; padding: 16px 10px; text-align: center; }
+    .meal-list-group-header {
+      font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+      color: var(--text-light); padding: 10px 12px 4px; border-bottom: 1px solid var(--border);
+      margin-top: 2px; display: flex; align-items: center; justify-content: space-between;
+      cursor: pointer; user-select: none;
+    }
+    .meal-list-group-header:first-child { margin-top: 0; }
+    .meal-list-group-header:hover { color: var(--text); }
+    .meal-group-toggle {
+      font-size: 10px; transition: transform .15s; display: inline-block;
+    }
+    .meal-list-group-header.collapsed .meal-group-toggle { transform: rotate(-90deg); }
+    .meal-list-group-items.collapsed { display: none; }
 
     /* Editor panel */
     .dir-right { display: none; flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; position: relative; }
@@ -610,6 +623,11 @@
           </div>
 
           <div class="field-group">
+            <label class="field-label">Meal Type</label>
+            <select id="editor-meal-type"></select>
+          </div>
+
+          <div class="field-group">
             <div class="ing-header-row">
               <label class="field-label" style="margin:0">Ingredients</label>
               <button class="btn btn-primary btn-sm" id="btn-add-ing">+ Add</button>
@@ -729,6 +747,19 @@
           </div>
         </div>
         <div class="data-card">
+          <h3>Manage Meal Types</h3>
+          <p>Select a meal type to rename or remove it</p>
+          <div class="cat-manage-row">
+            <select id="meal-type-select"></select>
+            <button class="btn-icon" id="btn-edit-meal-type" title="Rename meal type">&#x270E;</button>
+            <button class="btn-icon danger" id="btn-del-meal-type" title="Remove meal type">&#x2715;</button>
+          </div>
+          <div style="display:flex;gap:6px;margin-top:10px;">
+            <input type="text" id="new-meal-type-input" placeholder="New meal type...">
+            <button class="btn btn-primary btn-sm" id="btn-add-meal-type">Add</button>
+          </div>
+        </div>
+        <div class="data-card">
           <h3>AI Features</h3>
           <p>Enter a Claude API key to enable AI Parse and AI Generate</p>
           <div class="ai-key-row">
@@ -757,6 +788,7 @@ const CATEGORIES = [
   'Produce','Meat & Seafood','Dairy','Pantry',
   'Frozen','Bakery','Beverages','Snacks','Condiments','Other'
 ];
+const DEFAULT_MEAL_TYPES = ['Breakfast','Lunch','Dinner','Snack','Dessert','Other'];
 const COMMON_UNITS = [
   'oz','lbs','cups','tbsp','tsp','whole','cans','bags',
   'bunches','cloves','heads','slices','pieces','gallons',
@@ -830,6 +862,7 @@ const PLAN_KEY    = 'mplanner_plan';
 const ORDER_KEY   = 'mplanner_catorder';
 const USER_CATS_KEY = 'mplanner_usercats';
 const SHOP_KEY      = 'mplanner_shoplist';
+const MEAL_TYPES_KEY = 'mplanner_mealtypes';
 
 // File System Access API state
 let fileHandle = null;
@@ -899,6 +932,12 @@ function loadUserCats() {
 }
 function saveUserCats(c) { pushUndo(); localStorage.setItem(USER_CATS_KEY, JSON.stringify(c)); flushToIDB(); if (fileHandle) flushToFile(); }
 
+function loadMealTypes() {
+  try { const r=localStorage.getItem(MEAL_TYPES_KEY); if(r) return JSON.parse(r); } catch(e){}
+  return null;
+}
+function saveMealTypes(t) { pushUndo(); localStorage.setItem(MEAL_TYPES_KEY, JSON.stringify(t)); flushToIDB(); if (fileHandle) flushToFile(); }
+
 function loadShopList() {
   try { const r = localStorage.getItem(SHOP_KEY); if (r) return JSON.parse(r); } catch(e){}
   return [];
@@ -925,6 +964,7 @@ function flushToIDB() {
         catOrder: JSON.parse(localStorage.getItem(ORDER_KEY)  || '[]'),
         userCats: JSON.parse(localStorage.getItem(USER_CATS_KEY) || 'null'),
         shopList: JSON.parse(localStorage.getItem(SHOP_KEY)   || '[]'),
+        mealTypes: JSON.parse(localStorage.getItem(MEAL_TYPES_KEY) || 'null'),
         savedAt:  Date.now(),
       };
       const db = await openBackupDB();
@@ -949,6 +989,7 @@ async function restoreFromIDB() {
     if (data.catOrder) localStorage.setItem(ORDER_KEY,  JSON.stringify(data.catOrder));
     if (data.userCats != null) localStorage.setItem(USER_CATS_KEY, JSON.stringify(data.userCats));
     if (data.shopList) localStorage.setItem(SHOP_KEY,   JSON.stringify(data.shopList));
+    if (data.mealTypes != null) localStorage.setItem(MEAL_TYPES_KEY, JSON.stringify(data.mealTypes));
     return true;
   } catch (e) { console.warn('IDB restore failed:', e); return false; }
 }
@@ -963,6 +1004,7 @@ function buildStateJSON() {
     catOrder: JSON.parse(localStorage.getItem(ORDER_KEY)  || '[]'),
     userCats: JSON.parse(localStorage.getItem(USER_CATS_KEY) || 'null'),
     shopList: JSON.parse(localStorage.getItem(SHOP_KEY)   || '[]'),
+    mealTypes: JSON.parse(localStorage.getItem(MEAL_TYPES_KEY) || 'null'),
   }, null, 2);
 }
 
@@ -993,8 +1035,10 @@ async function loadFromFile(handle) {
     if (data.catOrder) localStorage.setItem(ORDER_KEY,  JSON.stringify(data.catOrder));
     if (data.userCats != null) localStorage.setItem(USER_CATS_KEY, JSON.stringify(data.userCats));
     if (data.shopList) localStorage.setItem(SHOP_KEY,   JSON.stringify(data.shopList));
+    if (data.mealTypes != null) localStorage.setItem(MEAL_TYPES_KEY, JSON.stringify(data.mealTypes));
     meals = loadMeals(); plan = loadPlan(); shopCatOrder = loadCatOrder();
     userCats = loadUserCats(); shopItems = loadShopList();
+    userMealTypes = loadMealTypes();
     return true;
   } catch (e) { console.warn('File load failed:', e); return false; }
 }
@@ -1095,6 +1139,10 @@ async function restoreFileHandle() {
 let userCats = null; // null = use defaults, array = user-managed list
 function allCategories() { return userCats !== null ? [...userCats] : [...CATEGORIES]; }
 
+let userMealTypes = null; // null = use defaults, array = user-managed list
+function allMealTypes() { return userMealTypes !== null ? [...userMealTypes] : [...DEFAULT_MEAL_TYPES]; }
+function ensureUserMealTypes() { if (userMealTypes === null) { userMealTypes = [...DEFAULT_MEAL_TYPES]; saveMealTypes(userMealTypes); } }
+
 function uid() {
   if (crypto.randomUUID) return crypto.randomUUID();
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
@@ -1108,6 +1156,7 @@ function uid() {
 let meals = [];
 let plan  = {};
 let selId = null;        // selected meal id
+const collapsedMealGroups = {}; // tracks which meal type groups are collapsed
 let shopItems = [];      // current shopping list items
 let addCat = null;       // active inline-add category
 let shopCatOrder = [];   // persistent user-defined category order
@@ -1119,7 +1168,7 @@ const autoHiddenCats = new Set(); // categories already auto-hidden after all ch
    UNDO / REDO  (per-tab stacks)
 ===================================================================== */
 const UNDO_LIMIT = 20;
-const UNDO_KEYS = [MEALS_KEY, PLAN_KEY, ORDER_KEY, USER_CATS_KEY, SHOP_KEY];
+const UNDO_KEYS = [MEALS_KEY, PLAN_KEY, ORDER_KEY, USER_CATS_KEY, SHOP_KEY, MEAL_TYPES_KEY];
 const tabUndoStacks = { directory:[], planner:[], shopping:[], data:[] };
 const tabRedoStacks = { directory:[], planner:[], shopping:[], data:[] };
 let snapshotPending = false;
@@ -1162,6 +1211,7 @@ function renderAll() {
   plan  = loadPlan();
   shopCatOrder = loadCatOrder();
   userCats = loadUserCats();
+  userMealTypes = loadMealTypes();
   shopItems = loadShopList();
   addCat = null;
   globalAddOpen = false;
@@ -1183,6 +1233,7 @@ function renderAll() {
   renderPlanner();
   renderShopList();
   renderCatManager();
+  renderMealTypeManager();
 }
 
 function undo() {
@@ -1507,6 +1558,44 @@ function moveMeal(id, dir) {
   renderMealList();
 }
 
+function renderMealItem(meal, list, q) {
+  const item = document.createElement('div');
+  item.className='meal-list-item'+(meal.id===selId?' selected':'');
+  const left = document.createElement('span');
+  left.style.cssText='display:flex;align-items:center;gap:6px;overflow:hidden;';
+  const nameSpan = document.createElement('span');
+  nameSpan.textContent = meal.name || '(unnamed)';
+  nameSpan.style.cssText='overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+  left.appendChild(nameSpan);
+  if (lastGenMealIds.has(meal.id)) {
+    const dot = document.createElement('span');
+    dot.className = 'meal-tag-planned';
+    dot.title = 'Used recently';
+    left.appendChild(dot);
+  }
+  item.appendChild(left);
+  const btns = document.createElement('span');
+  btns.style.cssText='display:flex;gap:6px;flex-shrink:0;';
+  const recipe = document.createElement('button'); recipe.className='btn-reorder btn-reorder-wide'; recipe.innerHTML='&#x1F4D6;'; recipe.title='View recipe';
+  recipe.addEventListener('click', e=>{e.stopPropagation(); showRecipe(meal);});
+  btns.appendChild(recipe);
+  const edit = document.createElement('button'); edit.className='btn-reorder btn-reorder-wide'; edit.innerHTML='&#x270E;'; edit.title='Edit meal';
+  edit.addEventListener('click', ()=>openMeal(meal.id));
+  btns.appendChild(edit);
+  if (!q) {
+    const up = document.createElement('button'); up.className='btn-reorder btn-reorder-wide'; up.innerHTML='&#x2191;'; up.title='Move up';
+    const dn = document.createElement('button'); dn.className='btn-reorder btn-reorder-wide'; dn.innerHTML='&#x2193;'; dn.title='Move down';
+    const mi = meals.indexOf(meal);
+    if (mi===0) up.disabled=true;
+    if (mi===meals.length-1) dn.disabled=true;
+    up.addEventListener('click', e=>{e.stopPropagation(); moveMeal(meal.id,-1);});
+    dn.addEventListener('click', e=>{e.stopPropagation(); moveMeal(meal.id,1);});
+    btns.appendChild(up); btns.appendChild(dn);
+  }
+  item.appendChild(btns);
+  list.appendChild(item);
+}
+
 function renderMealList() {
   const list = document.getElementById('meal-list');
   const q = document.getElementById('meal-search').value.toLowerCase().trim();
@@ -1517,42 +1606,39 @@ function renderMealList() {
     el.textContent = meals.length ? 'No meals found.' : 'No meals yet. Click + New.';
     list.appendChild(el); return;
   }
+  // Group meals by mealType
+  const types = allMealTypes();
+  const grouped = {};
+  for (const t of types) grouped[t] = [];
   for (const meal of filtered) {
-    const item = document.createElement('div');
-    item.className='meal-list-item'+(meal.id===selId?' selected':'');
-    const left = document.createElement('span');
-    left.style.cssText='display:flex;align-items:center;gap:6px;overflow:hidden;';
-    const nameSpan = document.createElement('span');
-    nameSpan.textContent = meal.name || '(unnamed)';
-    nameSpan.style.cssText='overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
-    left.appendChild(nameSpan);
-    if (lastGenMealIds.has(meal.id)) {
-      const dot = document.createElement('span');
-      dot.className = 'meal-tag-planned';
-      dot.title = 'Used recently';
-      left.appendChild(dot);
-    }
-    item.appendChild(left);
-    const btns = document.createElement('span');
-    btns.style.cssText='display:flex;gap:6px;flex-shrink:0;';
-    const recipe = document.createElement('button'); recipe.className='btn-reorder btn-reorder-wide'; recipe.innerHTML='&#x1F4D6;'; recipe.title='View recipe';
-    recipe.addEventListener('click', e=>{e.stopPropagation(); showRecipe(meal);});
-    btns.appendChild(recipe);
-    const edit = document.createElement('button'); edit.className='btn-reorder btn-reorder-wide'; edit.innerHTML='&#x270E;'; edit.title='Edit meal';
-    edit.addEventListener('click', ()=>openMeal(meal.id));
-    btns.appendChild(edit);
-    if (!q) {
-      const up = document.createElement('button'); up.className='btn-reorder btn-reorder-wide'; up.innerHTML='&#x2191;'; up.title='Move up';
-      const dn = document.createElement('button'); dn.className='btn-reorder btn-reorder-wide'; dn.innerHTML='&#x2193;'; dn.title='Move down';
-      const mi = meals.indexOf(meal);
-      if (mi===0) up.disabled=true;
-      if (mi===meals.length-1) dn.disabled=true;
-      up.addEventListener('click', e=>{e.stopPropagation(); moveMeal(meal.id,-1);});
-      dn.addEventListener('click', e=>{e.stopPropagation(); moveMeal(meal.id,1);});
-      btns.appendChild(up); btns.appendChild(dn);
-    }
-    item.appendChild(btns);
-    list.appendChild(item);
+    const t = meal.mealType || 'Other';
+    if (!grouped[t]) grouped[t] = [];
+    grouped[t].push(meal);
+  }
+  // Render each group that has meals
+  for (const t of [...types, ...Object.keys(grouped).filter(k => !types.includes(k))]) {
+    if (!grouped[t] || !grouped[t].length) continue;
+    const isCollapsed = collapsedMealGroups[t] === true;
+    const header = document.createElement('div');
+    header.className = 'meal-list-group-header' + (isCollapsed ? ' collapsed' : '');
+    const label = document.createElement('span');
+    label.textContent = t + ' (' + grouped[t].length + ')';
+    const chevron = document.createElement('span');
+    chevron.className = 'meal-group-toggle';
+    chevron.innerHTML = '&#x25BC;';
+    header.appendChild(label);
+    header.appendChild(chevron);
+    list.appendChild(header);
+    const itemsDiv = document.createElement('div');
+    itemsDiv.className = 'meal-list-group-items' + (isCollapsed ? ' collapsed' : '');
+    for (const meal of grouped[t]) renderMealItem(meal, itemsDiv, q);
+    list.appendChild(itemsDiv);
+    header.addEventListener('click', () => {
+      const nowCollapsed = !collapsedMealGroups[t];
+      collapsedMealGroups[t] = nowCollapsed;
+      header.classList.toggle('collapsed', nowCollapsed);
+      itemsDiv.classList.toggle('collapsed', nowCollapsed);
+    });
   }
   const key = document.getElementById('meal-list-key');
   const hasPlanned = filtered.some(m => lastGenMealIds.has(m.id));
@@ -1563,7 +1649,7 @@ let editorSnapshot = null; // JSON string of editor state when opened
 
 function editorStateString() {
   const data = collectEditor();
-  return JSON.stringify(data || {name:'',ingredients:[],notes:'',instructions:''});
+  return JSON.stringify(data || {name:'',mealType:'Other',ingredients:[],notes:'',instructions:''});
 }
 
 function isEditorDirty() {
@@ -1612,6 +1698,14 @@ function showEditor(meal) {
   document.getElementById('editor-notes').value = meal.notes || '';
   document.getElementById('editor-instructions').value = meal.instructions || '';
   document.getElementById('dir-status').textContent = '';
+  // Populate meal type dropdown
+  const mtSel = document.getElementById('editor-meal-type');
+  mtSel.innerHTML = '';
+  for (const t of allMealTypes()) {
+    const opt = document.createElement('option'); opt.value = t; opt.textContent = t;
+    mtSel.appendChild(opt);
+  }
+  mtSel.value = meal.mealType || 'Other';
   const ingList = document.getElementById('ing-list');
   ingList.innerHTML = '';
   for (const ing of meal.ingredients||[]) addIngRow(ing);
@@ -1718,7 +1812,8 @@ function collectEditor() {
       category: row.querySelector('.ing-cat input')?.value.trim()||'',
     });
   }
-  return { name, ingredients:ings, notes: document.getElementById('editor-notes').value.trim(), instructions: document.getElementById('editor-instructions').value.trim() };
+  const mealType = document.getElementById('editor-meal-type').value || 'Other';
+  return { name, mealType, ingredients:ings, notes: document.getElementById('editor-notes').value.trim(), instructions: document.getElementById('editor-instructions').value.trim() };
 }
 
 /* =====================================================================
@@ -1730,7 +1825,7 @@ function newMeal() {
   const doNew = () => {
     isNewMeal = true;
     selId = null;
-    showEditor({name:'', ingredients:[], notes:'', instructions:''});
+    showEditor({name:'', mealType:'Other', ingredients:[], notes:'', instructions:''});
     document.getElementById('btn-share-meal').classList.add('hidden');
     document.getElementById('btn-import-meal').classList.remove('hidden');
     renderMealList();
@@ -1821,7 +1916,7 @@ function delMeal() {
 function shareMeal() {
   const data = collectEditor();
   if (!data) { setStatus('dir-status','Nothing to share.',true); return; }
-  const payload = JSON.stringify({ _mealPlannerShare: true, name: data.name, ingredients: data.ingredients, notes: data.notes, instructions: data.instructions });
+  const payload = JSON.stringify({ _mealPlannerShare: true, name: data.name, mealType: data.mealType, ingredients: data.ingredients, notes: data.notes, instructions: data.instructions });
   const btn = document.getElementById('btn-share-meal');
   navigator.clipboard.writeText(payload).then(() => {
     btn.textContent = 'Copied!';
@@ -1841,7 +1936,7 @@ function importMealFromClipboard() {
     if (!data._mealPlannerShare || !data.name) {
       setStatus('dir-status','Clipboard does not contain valid meal data.',true); return;
     }
-    showEditor({ name: data.name, ingredients: data.ingredients||[], notes: data.notes||'', instructions: data.instructions||'' });
+    showEditor({ name: data.name, mealType: data.mealType||'Other', ingredients: data.ingredients||[], notes: data.notes||'', instructions: data.instructions||'' });
     setStatus('dir-status','Meal imported from clipboard! Review and save.');
   }).catch(() => {
     setStatus('dir-status','Could not read clipboard. Check browser permissions.',true);
@@ -2422,6 +2517,80 @@ function addCustomCat() {
   inp.value = '';
 }
 
+/* ---- Meal Type Manager ---- */
+function renderMealTypeManager() {
+  const sel = document.getElementById('meal-type-select');
+  sel.innerHTML = '';
+  for (const t of allMealTypes()) {
+    const opt = document.createElement('option'); opt.value = t; opt.textContent = t;
+    sel.appendChild(opt);
+  }
+}
+
+function deleteMealType() {
+  const sel = document.getElementById('meal-type-select');
+  const name = sel.value;
+  if (!name) return;
+  modal({
+    title: 'Remove Meal Type?',
+    body: 'Remove "' + name + '"? Meals with this type will show under "Other".',
+    okText: 'Remove', okClass: 'btn-danger',
+    onOk: () => {
+      ensureUserMealTypes();
+      userMealTypes = userMealTypes.filter(t => t !== name);
+      saveMealTypes(userMealTypes);
+      renderMealTypeManager();
+      renderMealList();
+    }
+  });
+}
+
+function editMealType() {
+  const sel = document.getElementById('meal-type-select');
+  const name = sel.value;
+  if (!name) return;
+  const inp = document.createElement('input');
+  inp.type = 'text'; inp.value = name;
+  inp.style.cssText = 'width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:14px;font-family:inherit;color:var(--text);background:white;outline:none;margin-top:8px;';
+  modal({
+    title: 'Rename Meal Type',
+    body: 'Enter a new name for "' + name + '":',
+    extra: inp,
+    okText: 'Rename',
+    okClass: 'btn-primary',
+    onOk: () => {
+      const newName = inp.value.trim();
+      if (!newName || newName === name) return;
+      if (allMealTypes().some(t => t.toLowerCase() === newName.toLowerCase())) return;
+      ensureUserMealTypes();
+      const idx = userMealTypes.indexOf(name);
+      if (idx >= 0) userMealTypes[idx] = newName;
+      // Update all meals that had the old type
+      for (const m of meals) { if (m.mealType === name) m.mealType = newName; }
+      saveMeals(meals);
+      saveMealTypes(userMealTypes);
+      renderMealTypeManager();
+      renderMealList();
+    }
+  });
+  setTimeout(() => { inp.focus(); inp.select(); }, 50);
+}
+
+function addMealType() {
+  const inp = document.getElementById('new-meal-type-input');
+  const name = inp.value.trim();
+  if (!name) return;
+  if (allMealTypes().some(t => t.toLowerCase() === name.toLowerCase())) {
+    inp.value = '';
+    return;
+  }
+  ensureUserMealTypes();
+  userMealTypes.push(name);
+  saveMealTypes(userMealTypes);
+  renderMealTypeManager();
+  inp.value = '';
+}
+
 function exportData() {
   const data = {
     version: 1,
@@ -2431,6 +2600,7 @@ function exportData() {
     catOrder:  JSON.parse(localStorage.getItem(ORDER_KEY)    || '[]'),
     userCats:  JSON.parse(localStorage.getItem(USER_CATS_KEY) || 'null'),
     shopList:  JSON.parse(localStorage.getItem(SHOP_KEY) || '[]'),
+    mealTypes: JSON.parse(localStorage.getItem(MEAL_TYPES_KEY) || 'null'),
   };
   const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
   const a = document.createElement('a');
@@ -2459,12 +2629,15 @@ function importData() {
             if (data.plan)     localStorage.setItem(PLAN_KEY,   JSON.stringify(data.plan));
             if (data.catOrder)   localStorage.setItem(ORDER_KEY,       JSON.stringify(data.catOrder));
             if (data.userCats != null) localStorage.setItem(USER_CATS_KEY, JSON.stringify(data.userCats));
+            if (data.mealTypes != null) localStorage.setItem(MEAL_TYPES_KEY, JSON.stringify(data.mealTypes));
             // Reload state
             meals = loadMeals();
             plan  = loadPlan();
             shopCatOrder = loadCatOrder();
             userCats = loadUserCats();
+            userMealTypes = loadMealTypes();
             renderCatManager();
+            renderMealTypeManager();
             if (data.shopList) { localStorage.setItem(SHOP_KEY, JSON.stringify(data.shopList)); shopItems = data.shopList; } else { shopItems = loadShopList(); }
             saveShopList();
             addCat = null; globalAddOpen = false;
@@ -2745,6 +2918,8 @@ function loadParsedRecipeIntoEditor(mealData) {
   isNewMeal = true;
   selId = null;
   showEditor(mealData);
+  document.getElementById('btn-share-meal').classList.add('hidden');
+  document.getElementById('btn-import-meal').classList.remove('hidden');
   renderMealList();
   document.getElementById('tab-directory').classList.add('editing');
 }
@@ -2974,7 +3149,7 @@ function init() {
     restoreFromIDB().then(restored => {
       if (restored) {
         meals = loadMeals(); plan = loadPlan(); shopCatOrder = loadCatOrder();
-        userCats = loadUserCats(); shopItems = loadShopList();
+        userCats = loadUserCats(); userMealTypes = loadMealTypes(); shopItems = loadShopList();
         if (shopItems.length) lastGenMealIds = new Set(getPlannedIds());
         renderAll();
       }
@@ -3014,6 +3189,14 @@ function init() {
   document.getElementById('btn-del-cat').addEventListener('click', deleteCat);
   document.getElementById('btn-edit-cat').addEventListener('click', editCat);
   renderCatManager();
+
+  // Meal types
+  userMealTypes = loadMealTypes();
+  document.getElementById('btn-add-meal-type').addEventListener('click', addMealType);
+  document.getElementById('new-meal-type-input').addEventListener('keydown', e=>{ if(e.key==='Enter') addMealType(); });
+  document.getElementById('btn-del-meal-type').addEventListener('click', deleteMealType);
+  document.getElementById('btn-edit-meal-type').addEventListener('click', editMealType);
+  renderMealTypeManager();
 
   // AI Recipe Parser
   document.getElementById('btn-save-ai-key').addEventListener('click', handleSaveKey);
