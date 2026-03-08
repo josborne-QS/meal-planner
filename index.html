@@ -153,7 +153,6 @@
     /* Editing mode: toggle between list and editor at all sizes */
     #tab-directory.editing .dir-left { display: none; }
     #tab-directory.editing .dir-right { display: flex; flex-direction: column; }
-    #tab-directory.editing .back-btn { display: flex; }
     .dir-left-header {
       padding: 12px 12px 8px;
       display: flex; align-items: center; justify-content: space-between;
@@ -190,10 +189,15 @@
 
     /* Editor panel */
     .dir-right { display: none; flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; position: relative; }
-    .back-btn {
+    .editor-top-bar {
       display: none;
-      align-items: center; gap: 4px;
+      align-items: center; justify-content: space-between;
       padding: 10px 16px 0;
+    }
+    #tab-directory.editing .editor-top-bar { display: flex; }
+    .back-btn {
+      display: flex;
+      align-items: center; gap: 4px;
       background: none; border: none; cursor: pointer;
       font-size: 14px; font-weight: 600; color: var(--accent);
     }
@@ -593,7 +597,11 @@
       </div>
 
       <div class="dir-right" id="dir-right">
-        <button class="back-btn" id="back-btn">&#x2190; All Meals</button>
+        <div class="editor-top-bar">
+          <button class="back-btn" id="back-btn">&#x2190; All Meals</button>
+          <button class="btn btn-secondary btn-sm hidden" id="btn-share-meal">Share</button>
+          <button class="btn btn-secondary btn-sm hidden" id="btn-import-meal">Import</button>
+        </div>
         <div class="meal-editor hidden" id="meal-editor">
 
           <div class="field-group">
@@ -740,7 +748,7 @@
 /* =====================================================================
    VERSION — change this to update the version shown in the Data tab
 ===================================================================== */
-const APP_VERSION = 'v1.4';
+const APP_VERSION = 'v1.5';
 
 /* =====================================================================
    COMMON INGREDIENTS DATA
@@ -1589,6 +1597,8 @@ function openMeal(id) {
     selId = id;
     const meal = meals.find(m=>m.id===id);
     if (meal) showEditor(meal);
+    document.getElementById('btn-share-meal').classList.remove('hidden');
+    document.getElementById('btn-import-meal').classList.add('hidden');
     renderMealList();
     document.getElementById('tab-directory').classList.add('editing');
   };
@@ -1610,6 +1620,8 @@ function showEditor(meal) {
 
 function closeEditor() {
   document.getElementById('meal-editor').classList.add('hidden');
+  document.getElementById('btn-share-meal').classList.add('hidden');
+  document.getElementById('btn-import-meal').classList.add('hidden');
   selId = null;
   isNewMeal = false;
   editorSnapshot = null;
@@ -1719,6 +1731,8 @@ function newMeal() {
     isNewMeal = true;
     selId = null;
     showEditor({name:'', ingredients:[], notes:'', instructions:''});
+    document.getElementById('btn-share-meal').classList.add('hidden');
+    document.getElementById('btn-import-meal').classList.remove('hidden');
     renderMealList();
     document.getElementById('tab-directory').classList.add('editing');
     document.getElementById('editor-name').focus();
@@ -1801,6 +1815,36 @@ function delMeal() {
       meals = meals.filter(m=>m.id!==selId);
       saveMeals(meals); closeEditor();
     }
+  });
+}
+
+function shareMeal() {
+  const data = collectEditor();
+  if (!data) { setStatus('dir-status','Nothing to share.',true); return; }
+  const payload = JSON.stringify({ _mealPlannerShare: true, name: data.name, ingredients: data.ingredients, notes: data.notes, instructions: data.instructions });
+  const btn = document.getElementById('btn-share-meal');
+  navigator.clipboard.writeText(payload).then(() => {
+    btn.textContent = 'Copied!';
+    setTimeout(() => { btn.textContent = 'Share'; }, 2000);
+  }).catch(() => {
+    btn.textContent = 'Failed';
+    setTimeout(() => { btn.textContent = 'Share'; }, 2000);
+  });
+}
+
+function importMealFromClipboard() {
+  navigator.clipboard.readText().then(text => {
+    let data;
+    try { data = JSON.parse(text); } catch(e) {
+      setStatus('dir-status','Clipboard does not contain valid meal data.',true); return;
+    }
+    if (!data._mealPlannerShare || !data.name) {
+      setStatus('dir-status','Clipboard does not contain valid meal data.',true); return;
+    }
+    showEditor({ name: data.name, ingredients: data.ingredients||[], notes: data.notes||'', instructions: data.instructions||'' });
+    setStatus('dir-status','Meal imported from clipboard! Review and save.');
+  }).catch(() => {
+    setStatus('dir-status','Could not read clipboard. Check browser permissions.',true);
   });
 }
 
@@ -2949,6 +2993,8 @@ function init() {
   document.getElementById('btn-save-meal').addEventListener('click', saveMeal);
   document.getElementById('btn-dup-meal').addEventListener('click', dupMeal);
   document.getElementById('btn-del-meal').addEventListener('click', delMeal);
+  document.getElementById('btn-share-meal').addEventListener('click', shareMeal);
+  document.getElementById('btn-import-meal').addEventListener('click', importMealFromClipboard);
   document.getElementById('back-btn').addEventListener('click', () => guardEditorExit(closeEditor));
 
   // Planner
