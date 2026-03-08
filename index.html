@@ -694,9 +694,9 @@
     <!-- ===== SHOPPING LIST ===== -->
     <div id="tab-shopping" class="tab-content hidden">
       <div class="shopping-bar">
-        <button class="btn btn-primary" id="btn-gen">Generate from Plan</button>
+        <button class="btn btn-primary btn-xs" id="btn-gen">Generate from Plan</button>
         <div class="spacer"></div>
-        <button class="btn btn-secondary btn-sm" id="btn-copy">Copy</button>
+        <button class="btn btn-secondary btn-xs" id="btn-copy">Copy</button>
       </div>
       <div class="shopping-status" id="shop-status"></div>
       <div class="shopping-wrap" id="shop-wrap">
@@ -779,7 +779,7 @@
 /* =====================================================================
    VERSION — change this to update the version shown in the Data tab
 ===================================================================== */
-const APP_VERSION = 'v1.5';
+const APP_VERSION = 'v1.6';
 
 /* =====================================================================
    COMMON INGREDIENTS DATA
@@ -2208,7 +2208,7 @@ function appendGlobalAdd(wrap) {
 
   if (!globalAddOpen) {
     const btn = document.createElement('button');
-    btn.className = 'btn btn-primary btn-sm'; btn.textContent = '+ Add Item';
+    btn.className = 'btn btn-primary btn-xs'; btn.textContent = '+ Add Item';
     btn.addEventListener('click', () => { globalAddOpen = true; renderShopList(); setTimeout(()=>{ const i=wrap.querySelector('.global-add-row .item-name-inp'); if(i) i.focus(); },60); });
     div.appendChild(btn);
   } else {
