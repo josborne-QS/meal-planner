@@ -1931,9 +1931,29 @@ function delMeal() {
 function shareMeal() {
   const data = collectEditor();
   if (!data) { setStatus('dir-status','Nothing to share.',true); return; }
-  const payload = JSON.stringify({ _mealPlannerShare: true, name: data.name, mealType: data.mealType, ingredients: data.ingredients, notes: data.notes, instructions: data.instructions });
+  const json = JSON.stringify({ _mealPlannerShare: true, name: data.name, mealType: data.mealType, ingredients: data.ingredients, notes: data.notes, instructions: data.instructions });
+  const encoded = btoa(unescape(encodeURIComponent(json)));
+  // Build human-readable text
+  let readable = data.name + (data.mealType && data.mealType !== 'Other' ? ' (' + data.mealType + ')' : '') + '\n';
+  if (data.ingredients.length) {
+    readable += '\nIngredients:\n';
+    for (const ing of data.ingredients) {
+      let line = '- ';
+      if (ing.quantity) line += ing.quantity + ' ';
+      if (ing.unit) line += ing.unit + ' ';
+      line += ing.name;
+      readable += line + '\n';
+    }
+  }
+  if (data.notes) readable += '\nNotes: ' + data.notes + '\n';
+  if (data.instructions) {
+    readable += '\nInstructions:\n';
+    const steps = data.instructions.split('\n').filter(s => s.trim());
+    steps.forEach((s, i) => { readable += (i + 1) + '. ' + s.trim() + '\n'; });
+  }
+  readable += '\n[Meal Planner Import Code]\n' + encoded;
   const btn = document.getElementById('btn-share-meal');
-  navigator.clipboard.writeText(payload).then(() => {
+  navigator.clipboard.writeText(readable).then(() => {
     btn.textContent = 'Copied!';
     setTimeout(() => { btn.textContent = 'Share'; }, 2000);
   }).catch(() => {
@@ -1945,8 +1965,19 @@ function shareMeal() {
 function importMealFromClipboard() {
   navigator.clipboard.readText().then(text => {
     let data;
-    try { data = JSON.parse(text); } catch(e) {
-      setStatus('dir-status','Clipboard does not contain valid meal data.',true); return;
+    // Try to find base64 import code first
+    const codeMatch = text.match(/\[Meal Planner Import Code\]\s*\n(.+)/s);
+    if (codeMatch) {
+      try {
+        const decoded = decodeURIComponent(escape(atob(codeMatch[1].trim())));
+        data = JSON.parse(decoded);
+      } catch(e) { /* fall through to legacy JSON parse */ }
+    }
+    // Fall back to raw JSON (backward compat with old shares)
+    if (!data) {
+      try { data = JSON.parse(text); } catch(e) {
+        setStatus('dir-status','Clipboard does not contain valid meal data.',true); return;
+      }
     }
     if (!data._mealPlannerShare || !data.name) {
       setStatus('dir-status','Clipboard does not contain valid meal data.',true); return;
