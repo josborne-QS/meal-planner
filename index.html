@@ -536,6 +536,21 @@
     }
     @keyframes ai-spin { to { transform: rotate(360deg); } }
     .ai-parse-error { font-size: 13px; color: var(--danger); margin-top: 8px; }
+    .ai-parse-image-row {
+      display: flex; align-items: center; gap: 8px; margin-bottom: 12px; flex-wrap: wrap;
+    }
+    .ai-parse-image-row input[type="file"] { display: none; }
+    .ai-parse-image-preview {
+      max-width: 120px; max-height: 80px; border-radius: 6px; border: 1px solid var(--border);
+      object-fit: cover;
+    }
+    .ai-parse-image-remove {
+      background: var(--danger); color: white; border: none; border-radius: 4px;
+      padding: 2px 8px; font-size: 12px; cursor: pointer;
+    }
+    .ai-parse-or {
+      font-size: 12px; color: var(--text-light); text-align: center; margin-bottom: 10px;
+    }
 
     @media (max-width: 640px) {
       .ai-parse-panel { max-width: 100%; padding: 18px; }
@@ -2799,6 +2814,12 @@ function openParseRecipeModal() {
   panel.innerHTML = `
     <h3>AI Recipe Parser</h3>
     <textarea id="ai-recipe-text" placeholder="Paste recipe text here (from a website, cookbook, etc.)..." rows="10"></textarea>
+    <div class="ai-parse-or">- or -</div>
+    <div class="ai-parse-image-row">
+      <button class="btn btn-secondary btn-sm" id="ai-parse-img-btn">Choose Image</button>
+      <input type="file" id="ai-parse-img-input" accept="image/jpeg,image/png,image/gif,image/webp">
+      <span id="ai-parse-img-preview-wrap"></span>
+    </div>
     <div style="margin-bottom:10px;">
       <select id="ai-parse-model" style="font-size:14px;">
         <option value="claude-haiku-4-5-20251001">Haiku 4.5 (fastest)</option>
@@ -2819,16 +2840,44 @@ function openParseRecipeModal() {
   parseModelSel.addEventListener('change', () => saveAIModel(parseModelSel.value));
   ov.addEventListener('click', e => { if (e.target === ov) ov.remove(); });
   panel.querySelector('#ai-parse-cancel').addEventListener('click', () => ov.remove());
+
+  // Image picker
+  let imageData = null; // { base64, mediaType }
+  const imgInput = panel.querySelector('#ai-parse-img-input');
+  const imgBtn = panel.querySelector('#ai-parse-img-btn');
+  const imgPreviewWrap = panel.querySelector('#ai-parse-img-preview-wrap');
+  imgBtn.addEventListener('click', () => imgInput.click());
+  imgInput.addEventListener('change', () => {
+    const file = imgInput.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result;
+      const base64 = dataUrl.split(',')[1];
+      const mediaType = file.type || 'image/jpeg';
+      imageData = { base64, mediaType };
+      imgPreviewWrap.innerHTML = '';
+      const img = document.createElement('img');
+      img.src = dataUrl; img.className = 'ai-parse-image-preview';
+      const rm = document.createElement('button');
+      rm.className = 'ai-parse-image-remove'; rm.textContent = 'Remove';
+      rm.addEventListener('click', () => { imageData = null; imgPreviewWrap.innerHTML = ''; imgInput.value = ''; });
+      imgPreviewWrap.appendChild(img);
+      imgPreviewWrap.appendChild(rm);
+    };
+    reader.readAsDataURL(file);
+  });
+
   panel.querySelector('#ai-parse-go').addEventListener('click', async () => {
     const text = panel.querySelector('#ai-recipe-text').value.trim();
-    if (!text) return;
+    if (!text && !imageData) return;
     const goBtn = panel.querySelector('#ai-parse-go');
     const errDiv = panel.querySelector('#ai-parse-error');
     goBtn.disabled = true;
     goBtn.innerHTML = '<span class="ai-spinner"></span>Parsing...';
     errDiv.textContent = '';
     try {
-      const mealData = await callClaudeForRecipe(text);
+      const mealData = await callClaudeForRecipe(text, imageData);
       ov.remove();
       loadParsedRecipeIntoEditor(mealData);
     } catch (e) {
@@ -2839,11 +2888,11 @@ function openParseRecipeModal() {
   });
 }
 
-async function callClaudeForRecipe(recipeText) {
+async function callClaudeForRecipe(recipeText, imageData) {
   const key = loadAIKey();
   const model = loadAIModel();
   const categories = allCategories();
-  const systemPrompt = `You are a recipe parser. Extract structured meal data from the user's recipe text.
+  const systemPrompt = `You are a recipe parser. Extract structured meal data from the user's input (text, image, or both).
 Return ONLY valid JSON (no code fences, no explanation) matching this schema:
 {
   "name": "string — the recipe name",
@@ -2862,7 +2911,15 @@ Rules:
 - Assign each ingredient to the most appropriate category from the list
 - Strip ads, stories, and irrelevant content — only extract the recipe
 - If quantity is unclear, leave it as empty string
-- The instructions field should have each step on its own line`;
+- The instructions field should have each step on its own line
+- If given an image, read all visible recipe text from the image`;
+
+  // Build content array with text and/or image
+  const content = [];
+  if (imageData) {
+    content.push({ type: 'image', source: { type: 'base64', media_type: imageData.mediaType, data: imageData.base64 } });
+  }
+  content.push({ type: 'text', text: recipeText || 'Parse the recipe from this image.' });
 
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -2876,7 +2933,7 @@ Rules:
       model,
       max_tokens: 2048,
       system: systemPrompt,
-      messages: [{ role: 'user', content: recipeText }],
+      messages: [{ role: 'user', content }],
     }),
   });
 
