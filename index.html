@@ -9,6 +9,7 @@
   <link id="touch-icon" rel="apple-touch-icon">
   <link id="favicon" rel="icon" type="image/png">
   <title>Meal Planner &amp; Grocery List</title>
+  <script>if(localStorage.getItem('mplanner_theme')==='dark')document.documentElement.setAttribute('data-theme','dark');</script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
@@ -27,6 +28,22 @@
       --text-light: #777777;
       --text-muted: #aaaaaa;
     }
+    [data-theme="dark"] {
+      --accent: #3ab5a6;
+      --accent-hover: #2a9d8f;
+      --accent-light: #1a3634;
+      --danger: #ff6b6b;
+      --danger-hover: #ee5a5a;
+      --gray: #8892a0;
+      --gray-hover: #9aa3b0;
+      --bg: #121212;
+      --panel: #1e1e1e;
+      --row: #252525;
+      --border: #333333;
+      --text: #e4e4e4;
+      --text-light: #a0a0a0;
+      --text-muted: #555555;
+    }
     html, body {
       height: 100%;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -41,11 +58,14 @@
     header {
       background: var(--bg);
       border-bottom: 2px solid var(--border);
+      box-shadow: 0 1px 4px rgba(0,0,0,.06);
       display: flex;
       align-items: center;
       padding: 0 12px;
       flex-shrink: 0;
       gap: 6px;
+      position: relative;
+      z-index: 10;
     }
     .app-title { font-size: 15px; font-weight: 700; color: var(--accent); white-space: nowrap; padding-right: 6px; }
     .title-group { display: flex; align-items: center; gap: 6px; }
@@ -73,6 +93,7 @@
       width: 100%; max-width: 360px; text-align: left;
       background: var(--panel); border: 1px solid var(--border);
       border-radius: 10px; padding: 24px 20px;
+      box-shadow: 0 1px 3px rgba(0,0,0,.04);
     }
     .data-card h3 { font-size: 16px; margin-bottom: 4px; }
     .data-card p { font-size: 13px; color: var(--text-light); margin-bottom: 14px; }
@@ -130,13 +151,14 @@
       font-size: 14px;
       font-family: inherit;
       color: var(--text);
-      background: white;
+      background: var(--bg);
       outline: none;
       transition: border-color .15s, box-shadow .15s;
     }
-    input:focus, select:focus {
+    input:focus, select:focus, textarea:focus {
       border-color: var(--accent);
-      box-shadow: 0 0 0 2px rgba(42,157,143,.15);
+      box-shadow: 0 0 0 3px rgba(42,157,143,.15);
+      background: var(--bg);
     }
 
     /* ================================================================
@@ -158,7 +180,13 @@
       display: flex; align-items: center; justify-content: space-between;
     }
     .dir-left-header h2 { font-size: 16px; font-weight: 700; }
-    .dir-search { padding: 0 10px 8px; }
+    .dir-search { padding: 0 10px 8px; position: relative; }
+    .dir-search-clear {
+      position: absolute; right: 16px; top: 50%; transform: translateY(-50%);
+      background: none; border: none; cursor: pointer; color: var(--text-muted);
+      font-size: 16px; padding: 2px 6px; line-height: 1; display: none;
+    }
+    .dir-search-clear:hover { color: var(--text); }
     .meal-list {
       flex: 1; overflow-y: auto; padding: 2px 6px 10px;
       -webkit-overflow-scrolling: touch;
@@ -232,7 +260,7 @@
       grid-template-columns: 1fr 36px;
       grid-template-rows: auto auto;
       gap: 4px; align-items: start;
-      background: #f0f0f0; border-radius: 6px;
+      background: var(--row); border-radius: 6px;
       padding: 6px 4px; margin-bottom: 4px;
     }
     .ing-row .ing-remove { grid-column: 2; grid-row: 1 / 3; align-self: center; }
@@ -240,7 +268,7 @@
       grid-column: 1; grid-row: 2;
       display: grid; grid-template-columns: 1fr 1fr 2fr; gap: 4px;
     }
-    .ing-row input { background: white; }
+    .ing-row input { background: var(--bg); }
     .ing-remove {
       width: 32px; height: 32px;
       background: var(--danger); color: white; border: none;
@@ -278,6 +306,8 @@
     .planner-table tr:nth-child(even) td { background: var(--row); }
     .day-cell { font-size: 13px; font-weight: 500; white-space: nowrap; padding: 6px 4px !important; width: 1%; text-align: center; }
     .planner-table select { min-width: 155px; font-size: 13px; padding: 6px 8px; }
+    .planner-ac { min-width: 155px; }
+    .planner-ac input { font-size: 13px; padding: 6px 8px; }
 
     /* ================================================================
        SHOPPING LIST
@@ -308,7 +338,8 @@
     }
     .shop-name { flex: 1; font-size: 13px; cursor: pointer; user-select: none; line-height: 24px; }
     .shop-name.checked { color: var(--text-muted); text-decoration: line-through; }
-    .shop-qty { max-width: 150px; padding: 0 6px; font-size: 12px; height: 24px; box-sizing: border-box; }
+    .shop-qty { max-width: 70px; padding: 0 6px; font-size: 12px; height: 24px; box-sizing: border-box; }
+    .shop-unit { max-width: 70px; padding: 0 6px; font-size: 12px; height: 24px; box-sizing: border-box; }
     .shopping-wrap .btn-xs { height: 24px; min-height: 24px; padding: 0 8px; font-size: 12px; line-height: 24px; }
     .inline-add {
       display: flex; align-items: center; gap: 6px;
@@ -334,9 +365,9 @@
     .ac-wrap input { width: 100%; }
     .ac-dropdown {
       position: absolute; top: 100%; left: 0; right: 0;
-      background: white; border: 1px solid var(--border);
+      background: var(--bg); border: 1px solid var(--border);
       border-radius: 6px; box-shadow: 0 4px 14px rgba(0,0,0,.12);
-      z-index: 9999; max-height: 190px; overflow-y: auto;
+      z-index: 9999; max-height: 320px; overflow-y: auto;
       -webkit-overflow-scrolling: touch;
     }
     .ac-item { padding: 9px 12px; cursor: pointer; font-size: 14px; }
@@ -351,7 +382,7 @@
       justify-content: center; padding: 16px;
     }
     .modal {
-      background: white; border-radius: 10px; padding: 22px;
+      background: var(--bg); border-radius: 10px; padding: 22px;
       max-width: 380px; width: 100%;
       box-shadow: 0 8px 32px rgba(0,0,0,.2);
     }
@@ -444,7 +475,7 @@
       overflow-y: auto; -webkit-overflow-scrolling: touch;
     }
     .recipe-panel {
-      background: white; border-radius: 12px; padding: 24px;
+      background: var(--bg); border-radius: 12px; padding: 24px;
       max-width: 600px; width: 100%;
       box-shadow: 0 8px 32px rgba(0,0,0,.25);
       margin: auto;
@@ -494,16 +525,11 @@
       font-size: 14px;
       font-family: inherit;
       color: var(--text);
-      background: white;
+      background: var(--bg);
       outline: none;
       resize: vertical;
       transition: border-color .15s, box-shadow .15s;
     }
-    textarea:focus {
-      border-color: var(--accent);
-      box-shadow: 0 0 0 2px rgba(42,157,143,.15);
-    }
-
     /* ================================================================
        AI RECIPE PARSER
     ================================================================ */
@@ -520,7 +546,7 @@
       overflow-y: auto; -webkit-overflow-scrolling: touch;
     }
     .ai-parse-panel {
-      background: white; border-radius: 12px; padding: 24px;
+      background: var(--bg); border-radius: 12px; padding: 24px;
       max-width: 540px; width: 100%;
       box-shadow: 0 8px 32px rgba(0,0,0,.25);
       margin: auto;
@@ -559,7 +585,7 @@
 
     /* ---- AI Generate ---- */
     .ai-gen-panel {
-      background: white; border-radius: 12px; padding: 24px;
+      background: var(--bg); border-radius: 12px; padding: 24px;
       max-width: 560px; width: 100%;
       box-shadow: 0 8px 32px rgba(0,0,0,.25);
       margin: auto; display: flex; flex-direction: column;
@@ -582,6 +608,115 @@
       .ai-gen-panel textarea { font-size: 16px; }
     }
 
+    /* ---- Animations ---- */
+    @keyframes fadeSlideIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes fadeSlideOut {
+      from { opacity: 1; transform: translateY(0); }
+      to { opacity: 0; transform: translateY(8px); }
+    }
+    .tab-content:not(.hidden) { animation: fadeSlideIn .2s ease-out; }
+    #tab-directory.editing .dir-right { animation: fadeSlideIn .2s ease-out; }
+
+    /* ---- Toast Notifications ---- */
+    .toast-container {
+      position: fixed; bottom: 20px; right: 20px; z-index: 20000;
+      display: flex; flex-direction: column-reverse; gap: 8px;
+      pointer-events: none;
+    }
+    .toast {
+      pointer-events: auto;
+      background: var(--text); color: var(--bg);
+      padding: 10px 18px; border-radius: 8px;
+      font-size: 13px; font-weight: 500;
+      box-shadow: 0 4px 16px rgba(0,0,0,.18);
+      animation: toastIn .25s ease-out;
+      max-width: 320px;
+    }
+    .toast.toast-err { background: var(--danger); color: white; }
+    .toast.toast-out { animation: fadeSlideOut .2s ease-in forwards; }
+    @keyframes toastIn {
+      from { opacity: 0; transform: translateY(12px) scale(.95); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    @media (max-width: 640px) {
+      .toast-container { bottom: 12px; left: 12px; right: 12px; }
+      .toast { max-width: 100%; }
+    }
+
+    /* ---- Shopping Progress ---- */
+    .shop-progress {
+      display: flex; align-items: center; gap: 8px; font-size: 12px;
+      color: var(--text-light); white-space: nowrap;
+    }
+    .shop-progress-bar {
+      flex: 1; height: 6px; background: var(--border); border-radius: 3px;
+      overflow: hidden; min-width: 80px; max-width: 140px;
+    }
+    .shop-progress-fill {
+      height: 100%; background: var(--accent); border-radius: 3px;
+      transition: width .3s ease;
+    }
+
+    /* ---- Empty States ---- */
+    .empty-state {
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; padding: 40px 20px; text-align: center;
+      color: var(--text-muted);
+    }
+    .empty-state svg { margin-bottom: 12px; opacity: .4; }
+    .empty-state-title { font-size: 15px; font-weight: 600; color: var(--text-light); margin-bottom: 4px; }
+    .empty-state-sub { font-size: 13px; }
+
+    /* ---- Checkbox animation ---- */
+    .shop-item input[type="checkbox"] {
+      transition: transform .15s ease;
+    }
+    .shop-item input[type="checkbox"]:checked {
+      animation: checkBounce .25s ease;
+    }
+    @keyframes checkBounce {
+      0% { transform: scale(1); }
+      40% { transform: scale(1.25); }
+      100% { transform: scale(1); }
+    }
+
+    /* ---- SVG icon alignment ---- */
+    .btn-icon svg, .btn-reorder svg, .back-btn svg, .ing-remove svg,
+    .dir-search-clear svg, .meal-group-toggle svg {
+      display: inline-block; vertical-align: middle;
+    }
+
+    /* ---- Theme toggle ---- */
+    .theme-toggle {
+      background: none; border: 1px solid var(--border); border-radius: 6px;
+      cursor: pointer; padding: 5px 7px; line-height: 0;
+      color: var(--text-light); transition: background .15s, color .15s, border-color .15s;
+    }
+    .theme-toggle:hover { background: var(--accent-light); color: var(--accent); border-color: var(--accent); }
+    .theme-toggle svg { display: block; }
+
+    /* ---- Dark mode overrides ---- */
+    [data-theme="dark"] header { box-shadow: 0 1px 6px rgba(0,0,0,.3); }
+    [data-theme="dark"] .data-card { box-shadow: 0 1px 4px rgba(0,0,0,.2); }
+    [data-theme="dark"] input[type="text"],
+    [data-theme="dark"] input[type="number"],
+    [data-theme="dark"] input[type="password"],
+    [data-theme="dark"] select,
+    [data-theme="dark"] textarea { background: var(--row); color: var(--text); border-color: var(--border); }
+    [data-theme="dark"] input:focus,
+    [data-theme="dark"] select:focus,
+    [data-theme="dark"] textarea:focus { background: var(--panel); box-shadow: 0 0 0 3px rgba(58,181,166,.2); }
+    [data-theme="dark"] .modal,
+    [data-theme="dark"] .recipe-panel,
+    [data-theme="dark"] .ai-parse-panel,
+    [data-theme="dark"] .ai-gen-panel { background: var(--panel); }
+    [data-theme="dark"] .toast { background: #e4e4e4; color: #121212; }
+    [data-theme="dark"] .ing-row input { background: var(--panel); }
+    [data-theme="dark"] .planner-table select { background: var(--row); color: var(--text); }
+
   </style>
 </head>
 <body>
@@ -590,14 +725,14 @@
   <header>
     <div class="title-group">
       <span class="app-title">&#x2764;&#xFE0F; Meal Planner</span>
-      <button class="btn-icon" id="btn-undo" disabled title="Undo">&#x2190;</button>
-      <button class="btn-icon" id="btn-redo" disabled title="Redo">&#x2192;</button>
+      <button class="btn-icon" id="btn-undo" disabled title="Undo"></button>
+      <button class="btn-icon" id="btn-redo" disabled title="Redo"></button>
     </div>
     <nav class="tabs">
-      <button class="tab-btn active" data-tab="directory">Edit Meals</button>
-      <button class="tab-btn" data-tab="planner">Select Meals</button>
-      <button class="tab-btn" data-tab="shopping">Shopping List</button>
-      <button class="tab-btn" data-tab="data">Data</button>
+      <button class="tab-btn active" data-tab="directory">Meals</button>
+      <button class="tab-btn" data-tab="planner">Planner</button>
+      <button class="tab-btn" data-tab="shopping">Shopping</button>
+      <button class="tab-btn" data-tab="data">Settings</button>
     </nav>
   </header>
 
@@ -617,6 +752,7 @@
         </div>
         <div class="dir-search">
           <input type="text" id="meal-search" placeholder="Search meals...">
+          <button type="button" class="dir-search-clear" id="meal-search-clear"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18"/><path d="M6 6l12 12"/></svg></button>
         </div>
         <div class="meal-list-key" id="meal-list-key">
           <span class="meal-list-key-dot"></span> Used recently
@@ -626,7 +762,7 @@
 
       <div class="dir-right" id="dir-right">
         <div class="editor-top-bar">
-          <button class="back-btn" id="back-btn">&#x2190; All Meals</button>
+          <button class="back-btn" id="back-btn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg> All Meals</button>
           <button class="btn btn-secondary btn-sm hidden" id="btn-share-meal">Share</button>
           <button class="btn btn-secondary btn-sm hidden" id="btn-import-meal">Import</button>
         </div>
@@ -691,7 +827,7 @@
         <label>Meals/day:</label>
         <input type="number" id="p-slots" value="3" min="1" max="6">
         <button class="btn btn-primary btn-sm" id="btn-apply">Apply</button>
-        <button class="btn-icon" id="btn-labels" title="Edit Labels">&#x270E;</button>
+        <button class="btn-icon" id="btn-labels" title="Edit Labels"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.85 0 0 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg></button>
         <div class="planner-actions">
           <button class="btn btn-primary btn-sm" id="btn-gen-planner">Generate List</button>
           <button class="btn btn-danger btn-sm" id="btn-reset">Reset Plan</button>
@@ -709,17 +845,18 @@
     <!-- ===== SHOPPING LIST ===== -->
     <div id="tab-shopping" class="tab-content hidden">
       <div class="shopping-bar">
-        <button class="btn btn-primary btn-xs" id="btn-gen">Generate from Plan</button>
+        <div class="shop-progress" id="shop-progress" style="display:none">
+          <span id="shop-progress-total"></span>
+          <div class="shop-progress-bar"><div class="shop-progress-fill" id="shop-progress-fill"></div></div>
+          <span id="shop-progress-remaining"></span>
+        </div>
         <div class="spacer"></div>
+        <button class="btn btn-primary btn-xs" id="btn-gen">Generate from Plan</button>
         <button class="btn btn-secondary btn-xs" id="btn-copy">Copy</button>
+        <button class="btn btn-danger btn-xs" id="btn-uncheck-all">Reset</button>
       </div>
       <div class="shopping-status" id="shop-status"></div>
-      <div class="shopping-wrap" id="shop-wrap">
-        <div class="shopping-placeholder">
-          Click &ldquo;Generate from Plan&rdquo; to create your shopping list.<br>
-          <small style="font-size:12px;color:#bbb">Or add items manually below.</small>
-        </div>
-      </div>
+      <div class="shopping-wrap" id="shop-wrap"></div>
     </div>
 
     <!-- ===== DATA ===== -->
@@ -728,6 +865,8 @@
         <div class="version-bar">
           <span class="version-badge" id="app-version"></span>
           <button class="btn btn-secondary btn-xs" id="btn-check-update">Check for Update</button>
+          <div style="flex:1"></div>
+          <button class="theme-toggle" id="btn-theme" title="Toggle dark mode"></button>
         </div>
         <div class="data-card" id="file-link-card" style="display:none">
           <h3>Auto-Save to File</h3>
@@ -752,9 +891,9 @@
           <h3>Manage Categories</h3>
           <p>Select a category to rename or remove it</p>
           <div class="cat-manage-row">
-            <select id="cat-select"></select>
-            <button class="btn-icon" id="btn-edit-cat" title="Rename category">&#x270E;</button>
-            <button class="btn-icon danger" id="btn-del-cat" title="Remove category">&#x2715;</button>
+            <div id="cat-ac-wrap" style="flex:1;min-width:0;"></div>
+            <button class="btn-icon" id="btn-edit-cat" title="Rename category"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.85 0 0 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg></button>
+            <button class="btn-icon danger" id="btn-del-cat" title="Remove category"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18"/><path d="M6 6l12 12"/></svg></button>
           </div>
           <div style="display:flex;gap:6px;margin-top:10px;">
             <input type="text" id="new-cat-input" placeholder="New category name...">
@@ -765,9 +904,9 @@
           <h3>Manage Meal Types</h3>
           <p>Select a meal type to rename or remove it</p>
           <div class="cat-manage-row">
-            <select id="meal-type-select"></select>
-            <button class="btn-icon" id="btn-edit-meal-type" title="Rename meal type">&#x270E;</button>
-            <button class="btn-icon danger" id="btn-del-meal-type" title="Remove meal type">&#x2715;</button>
+            <div id="meal-type-ac-wrap" style="flex:1;min-width:0;"></div>
+            <button class="btn-icon" id="btn-edit-meal-type" title="Rename meal type"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.85 0 0 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg></button>
+            <button class="btn-icon danger" id="btn-del-meal-type" title="Remove meal type"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18"/><path d="M6 6l12 12"/></svg></button>
           </div>
           <div style="display:flex;gap:6px;margin-top:10px;">
             <input type="text" id="new-meal-type-input" placeholder="New meal type...">
@@ -775,10 +914,18 @@
           </div>
         </div>
         <div class="data-card">
+          <h3>Custom Ingredients</h3>
+          <p>Ingredients you've added are remembered for quick selection</p>
+          <div class="cat-manage-row">
+            <div id="user-ing-ac-wrap" style="flex:1;min-width:0;"></div>
+            <button class="btn-icon danger" id="btn-del-user-ing" title="Remove ingredient"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18"/><path d="M6 6l12 12"/></svg></button>
+          </div>
+        </div>
+        <div class="data-card">
           <h3>AI Features</h3>
           <p>Enter a Claude API key to enable AI Parse and AI Generate</p>
           <div class="ai-key-row">
-            <input type="password" id="ai-key-input" placeholder="sk-ant-..." style="flex:1;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:14px;font-family:inherit;color:var(--text);background:white;outline:none;">
+            <input type="password" id="ai-key-input" placeholder="sk-ant-..." style="flex:1;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:14px;font-family:inherit;color:var(--text);background:var(--bg);outline:none;">
             <button class="btn btn-primary btn-sm" id="btn-save-ai-key">Save Key</button>
             <button class="btn btn-danger btn-sm hidden" id="btn-clear-ai-key">Remove</button>
           </div>
@@ -789,12 +936,13 @@
 
   </main>
 </div>
+<div class="toast-container" id="toast-container"></div>
 
 <script>
 /* =====================================================================
    VERSION — change this to update the version shown in the Data tab
 ===================================================================== */
-const APP_VERSION = 'v1.7';
+const APP_VERSION = 'v1.8';
 
 /* =====================================================================
    COMMON INGREDIENTS DATA
@@ -812,7 +960,7 @@ const COMMON_UNITS = [
 ];
 const ING_BY_CAT = {
   'Produce':['apple','apricot','artichoke','arugula','asparagus','avocado','banana','basil',
-    'beet','bell pepper','blackberries','blueberries','bok choy','broccoli','brussel sprouts',
+    'beet','bell pepper','blackberries','blueberries','bok choy','broccoli','brussels sprouts',
     'butternut squash','cabbage','carrot','cauliflower','celery','cherry tomatoes','cilantro',
     'corn','cucumber','dill','eggplant','garlic','ginger','grapes','green beans','green onion',
     'jalapeño','kale','leek','lemon','lettuce','lime','mango','mint','mushrooms','nectarine',
@@ -821,7 +969,7 @@ const ING_BY_CAT = {
     'tomato','watermelon','yellow squash','zucchini'],
   'Meat & Seafood':['bacon','beef (ground)','beef stew meat','chicken breast','chicken drumsticks',
     'chicken thighs','chicken wings','chorizo','cod','crab meat','deli turkey','ham','hot dogs',
-    'italian sausage','lamb chops','mahi mahi','pepperoni','pork chops','pork loin','pork tenderloin',
+    'italian sausage','mahi mahi','pepperoni','pork chops','pork loin','pork tenderloin',
     'prosciutto','salami','salmon','sausage','shrimp','sirloin steak','smoked salmon','steak',
     'tilapia','tuna steak','turkey (ground)','turkey breast'],
   'Dairy':['blue cheese','butter','cheddar cheese','colby jack','cottage cheese','cream cheese',
@@ -856,17 +1004,110 @@ const ING_BY_CAT = {
     'mayonnaise','mustard','ranch dressing','red wine vinegar','relish','salad dressing',
     'soy sauce','sriracha','steak sauce','teriyaki sauce','white wine vinegar','worcestershire sauce'],
 };
+/* =====================================================================
+   SVG ICONS
+===================================================================== */
+const ICO = {
+  arrowLeft:  '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>',
+  arrowRight: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5l7 7-7 7"/></svg>',
+  arrowUp:    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="M5 12l7-7 7 7"/></svg>',
+  arrowDown:  '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M19 12l-7 7-7-7"/></svg>',
+  x:          '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18"/><path d="M6 6l12 12"/></svg>',
+  edit:       '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.85 0 0 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>',
+  book:       '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>',
+  chevDown:   '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>',
+  sun:        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>',
+  moon:       '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>',
+  clipboard:  '<svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="4" rx="1"/><path d="M9 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2h-2"/><path d="M9 12h6M9 16h6"/></svg>',
+  calendar:   '<svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>',
+  cart:       '<svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>',
+  utensils:   '<svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2"/><path d="M7 2v20"/><path d="M21 15V2v0a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7"/></svg>',
+};
+
+/* =====================================================================
+   TOAST NOTIFICATIONS
+===================================================================== */
+function toast(msg, err=false) {
+  const container = document.getElementById('toast-container');
+  const el = document.createElement('div');
+  el.className = 'toast' + (err ? ' toast-err' : '');
+  el.textContent = msg;
+  container.appendChild(el);
+  setTimeout(() => {
+    el.classList.add('toast-out');
+    el.addEventListener('animationend', () => el.remove());
+  }, 2600);
+}
+
+/* =====================================================================
+   DARK MODE
+===================================================================== */
+function initTheme() {
+  const saved = localStorage.getItem('mplanner_theme');
+  if (saved === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+  updateThemeBtn();
+}
+function toggleTheme() {
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  if (isDark) document.documentElement.removeAttribute('data-theme');
+  else document.documentElement.setAttribute('data-theme', 'dark');
+  localStorage.setItem('mplanner_theme', isDark ? 'light' : 'dark');
+  updateThemeBtn();
+}
+function updateThemeBtn() {
+  const btn = document.getElementById('btn-theme');
+  if (!btn) return;
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  btn.innerHTML = isDark ? ICO.sun : ICO.moon;
+  btn.title = isDark ? 'Switch to light mode' : 'Switch to dark mode';
+}
+
+function loadUserIngs() {
+  try { const r = localStorage.getItem(USER_INGS_KEY); if (r) return JSON.parse(r); } catch(e){}
+  return {};
+}
+function saveUserIngs(obj) { localStorage.setItem(USER_INGS_KEY, JSON.stringify(obj)); flushToIDB(); if (fileHandle) flushToFile(); }
+
+function mergedIngByCat() {
+  const merged = {};
+  for (const [cat, arr] of Object.entries(ING_BY_CAT)) merged[cat] = [...arr];
+  const ui = loadUserIngs();
+  for (const [name, cat] of Object.entries(ui)) {
+    if (!merged[cat]) merged[cat] = [];
+    if (!merged[cat].some(x => x.toLowerCase() === name.toLowerCase())) merged[cat].push(name);
+  }
+  return merged;
+}
+
 function allIngNames() {
   const s = new Set();
-  for (const arr of Object.values(ING_BY_CAT)) arr.forEach(x => s.add(x));
+  const m = mergedIngByCat();
+  for (const arr of Object.values(m)) arr.forEach(x => s.add(x));
   return [...s].sort();
 }
 function catForIng(name) {
   const lo = name.toLowerCase().trim();
-  for (const [cat, arr] of Object.entries(ING_BY_CAT)) {
+  const m = mergedIngByCat();
+  for (const [cat, arr] of Object.entries(m)) {
     if (arr.some(x => x.toLowerCase() === lo)) return cat;
   }
   return '';
+}
+
+function absorbUserIngs(data) {
+  const ui = loadUserIngs();
+  let changed = false;
+  for (const ing of data.ingredients || []) {
+    const name = (ing.name || '').trim();
+    const cat = (ing.category || '').trim();
+    if (!name || !cat) continue;
+    // Skip if already in built-in data
+    const builtIn = ING_BY_CAT[cat];
+    if (builtIn && builtIn.some(x => x.toLowerCase() === name.toLowerCase())) continue;
+    // Add if new or category changed
+    if (!ui[name] || ui[name] !== cat) { ui[name] = cat; changed = true; }
+  }
+  if (changed) saveUserIngs(ui);
 }
 
 /* =====================================================================
@@ -878,6 +1119,7 @@ const ORDER_KEY   = 'mplanner_catorder';
 const USER_CATS_KEY = 'mplanner_usercats';
 const SHOP_KEY      = 'mplanner_shoplist';
 const MEAL_TYPES_KEY = 'mplanner_mealtypes';
+const USER_INGS_KEY  = 'mplanner_useringredients';
 
 // File System Access API state
 let fileHandle = null;
@@ -980,6 +1222,7 @@ function flushToIDB() {
         userCats: JSON.parse(localStorage.getItem(USER_CATS_KEY) || 'null'),
         shopList: JSON.parse(localStorage.getItem(SHOP_KEY)   || '[]'),
         mealTypes: JSON.parse(localStorage.getItem(MEAL_TYPES_KEY) || 'null'),
+        userIngs: JSON.parse(localStorage.getItem(USER_INGS_KEY) || '{}'),
         savedAt:  Date.now(),
       };
       const db = await openBackupDB();
@@ -1005,6 +1248,7 @@ async function restoreFromIDB() {
     if (data.userCats != null) localStorage.setItem(USER_CATS_KEY, JSON.stringify(data.userCats));
     if (data.shopList) localStorage.setItem(SHOP_KEY,   JSON.stringify(data.shopList));
     if (data.mealTypes != null) localStorage.setItem(MEAL_TYPES_KEY, JSON.stringify(data.mealTypes));
+    if (data.userIngs) localStorage.setItem(USER_INGS_KEY, JSON.stringify(data.userIngs));
     return true;
   } catch (e) { console.warn('IDB restore failed:', e); return false; }
 }
@@ -1020,6 +1264,7 @@ function buildStateJSON() {
     userCats: JSON.parse(localStorage.getItem(USER_CATS_KEY) || 'null'),
     shopList: JSON.parse(localStorage.getItem(SHOP_KEY)   || '[]'),
     mealTypes: JSON.parse(localStorage.getItem(MEAL_TYPES_KEY) || 'null'),
+    userIngs: JSON.parse(localStorage.getItem(USER_INGS_KEY) || '{}'),
   }, null, 2);
 }
 
@@ -1051,6 +1296,7 @@ async function loadFromFile(handle) {
     if (data.userCats != null) localStorage.setItem(USER_CATS_KEY, JSON.stringify(data.userCats));
     if (data.shopList) localStorage.setItem(SHOP_KEY,   JSON.stringify(data.shopList));
     if (data.mealTypes != null) localStorage.setItem(MEAL_TYPES_KEY, JSON.stringify(data.mealTypes));
+    if (data.userIngs) localStorage.setItem(USER_INGS_KEY, JSON.stringify(data.userIngs));
     meals = loadMeals(); plan = loadPlan(); shopCatOrder = loadCatOrder();
     userCats = loadUserCats(); shopItems = loadShopList();
     userMealTypes = loadMealTypes();
@@ -1183,7 +1429,7 @@ const autoHiddenCats = new Set(); // categories already auto-hidden after all ch
    UNDO / REDO  (per-tab stacks)
 ===================================================================== */
 const UNDO_LIMIT = 20;
-const UNDO_KEYS = [MEALS_KEY, PLAN_KEY, ORDER_KEY, USER_CATS_KEY, SHOP_KEY, MEAL_TYPES_KEY];
+const UNDO_KEYS = [MEALS_KEY, PLAN_KEY, ORDER_KEY, USER_CATS_KEY, SHOP_KEY, MEAL_TYPES_KEY, USER_INGS_KEY];
 const tabUndoStacks = { directory:[], planner:[], shopping:[], data:[] };
 const tabRedoStacks = { directory:[], planner:[], shopping:[], data:[] };
 let snapshotPending = false;
@@ -1321,6 +1567,7 @@ function makeAC(parent, { suggestions, placeholder, value, inputClass, onSelect,
   function pick(val) {
     inp.value = val; hide();
     if (onSelect) onSelect(val);
+    inp.select();
   }
   function updateHi() {
     [...dd.children].forEach((el,i) => el.classList.toggle('hi', i===hiIdx));
@@ -1330,7 +1577,7 @@ function makeAC(parent, { suggestions, placeholder, value, inputClass, onSelect,
   inp.addEventListener('input', () => {
     const q = inp.value.toLowerCase();
     if (!q) { if (showAll) show(suggestions.slice(0,30)); else hide(); return; }
-    show(suggestions.filter(s => s.toLowerCase().startsWith(q)).slice(0,30));
+    show(suggestions.filter(s => s.toLowerCase().includes(q)).slice(0,30));
   });
   inp.addEventListener('keydown', e => {
     if (dd.style.display==='none') return;
@@ -1340,12 +1587,14 @@ function makeAC(parent, { suggestions, placeholder, value, inputClass, onSelect,
     else if (e.key==='Escape') hide();
   });
   inp.addEventListener('blur', () => setTimeout(hide, 160));
-  inp.addEventListener('focus', () => {
+  function openDropdown() {
     inp.select();
     if (showAll) { show(suggestions.slice(0,30)); return; }
     const q = inp.value.toLowerCase();
-    if (q) show(suggestions.filter(s => s.toLowerCase().startsWith(q)).slice(0,30));
-  });
+    if (q) show(suggestions.filter(s => s.toLowerCase().includes(q)).slice(0,30));
+  }
+  inp.addEventListener('focus', openDropdown);
+  inp.addEventListener('click', openDropdown);
 
   parent.appendChild(wrap);
   return { get: () => inp.value, set: v => { inp.value=v; }, focus: ()=>inp.focus(),
@@ -1357,24 +1606,13 @@ function makeAC(parent, { suggestions, placeholder, value, inputClass, onSelect,
 ===================================================================== */
 const timers = {};
 function setStatus(id, msg, err=false) {
-  const el = document.getElementById(id); if (!el) return;
-  el.textContent = msg;
-  el.className = 'status-msg ' + (err ? 'status-err' : 'status-ok');
-  clearTimeout(timers[id]);
-  timers[id] = setTimeout(() => { el.textContent=''; }, 3000);
+  toast(msg, err);
 }
 function plannerStatus(msg) {
-  const el = document.getElementById('planner-status'); if (!el) return;
-  el.textContent = msg;
-  clearTimeout(timers['p']);
-  timers['p'] = setTimeout(() => { el.textContent=''; }, 3000);
+  toast(msg);
 }
 function shopStatus(msg, err=false) {
-  const el = document.getElementById('shop-status'); if (!el) return;
-  el.style.color = err ? 'var(--danger)' : 'var(--accent)';
-  el.textContent = msg;
-  clearTimeout(timers['s']);
-  timers['s'] = setTimeout(() => { el.textContent=''; }, 3000);
+  toast(msg, err);
 }
 
 /* =====================================================================
@@ -1391,6 +1629,11 @@ function switchTab(name) {
     if (name==='directory') closeEditor();
     updateUndoRedoBtns();
   };
+  // Guard: clicking "Edit Meals" tab while already editing on that tab
+  if (currentTab === 'directory' && name === 'directory' && isEditorDirty()) {
+    guardEditorExit(closeEditor);
+    return;
+  }
   if (currentTab === 'directory' && name !== 'directory' && isEditorDirty()) {
     guardEditorExit(() => { closeEditor(); doSwitch(); });
   } else {
@@ -1432,7 +1675,7 @@ function showRecipe(meal) {
   // Header
   const header = document.createElement('div'); header.className='recipe-header';
   const h2 = document.createElement('h2'); h2.textContent = meal.name || '(unnamed)';
-  const closeBtn = document.createElement('button'); closeBtn.className='recipe-close'; closeBtn.innerHTML='&#x2715;';
+  const closeBtn = document.createElement('button'); closeBtn.className='recipe-close'; closeBtn.innerHTML=ICO.x;
   header.appendChild(h2); header.appendChild(closeBtn);
   panel.appendChild(header);
 
@@ -1440,7 +1683,7 @@ function showRecipe(meal) {
     const sec = document.createElement('div'); sec.className='recipe-section'+(startCollapsed?' collapsed':'');
     const hdr = document.createElement('div'); hdr.className='recipe-section-header';
     const lbl = document.createElement('span'); lbl.textContent=title;
-    const toggle = document.createElement('span'); toggle.className='recipe-section-toggle'; toggle.textContent='\u25BC';
+    const toggle = document.createElement('span'); toggle.className='recipe-section-toggle'; toggle.innerHTML=ICO.chevDown;
     hdr.appendChild(lbl); hdr.appendChild(toggle);
     hdr.addEventListener('click', ()=>sec.classList.toggle('collapsed'));
     sec.appendChild(hdr);
@@ -1591,15 +1834,15 @@ function renderMealItem(meal, list, q) {
   item.appendChild(left);
   const btns = document.createElement('span');
   btns.style.cssText='display:flex;gap:6px;flex-shrink:0;';
-  const recipe = document.createElement('button'); recipe.className='btn-reorder btn-reorder-wide'; recipe.innerHTML='&#x1F4D6;'; recipe.title='View recipe';
+  const recipe = document.createElement('button'); recipe.className='btn-reorder btn-reorder-wide'; recipe.innerHTML=ICO.book; recipe.title='View recipe';
   recipe.addEventListener('click', e=>{e.stopPropagation(); showRecipe(meal);});
   btns.appendChild(recipe);
-  const edit = document.createElement('button'); edit.className='btn-reorder btn-reorder-wide'; edit.innerHTML='&#x270E;'; edit.title='Edit meal';
+  const edit = document.createElement('button'); edit.className='btn-reorder btn-reorder-wide'; edit.innerHTML=ICO.edit; edit.title='Edit meal';
   edit.addEventListener('click', ()=>openMeal(meal.id));
   btns.appendChild(edit);
   if (!q) {
-    const up = document.createElement('button'); up.className='btn-reorder btn-reorder-wide'; up.innerHTML='&#x2191;'; up.title='Move up';
-    const dn = document.createElement('button'); dn.className='btn-reorder btn-reorder-wide'; dn.innerHTML='&#x2193;'; dn.title='Move down';
+    const up = document.createElement('button'); up.className='btn-reorder btn-reorder-wide'; up.innerHTML=ICO.arrowUp; up.title='Move up';
+    const dn = document.createElement('button'); dn.className='btn-reorder btn-reorder-wide'; dn.innerHTML=ICO.arrowDown; dn.title='Move down';
     const mi = meals.indexOf(meal);
     if (mi===0) up.disabled=true;
     if (mi===meals.length-1) dn.disabled=true;
@@ -1617,8 +1860,12 @@ function renderMealList() {
   list.innerHTML = '';
   const filtered = q ? meals.filter(m=>m.name.toLowerCase().includes(q)) : meals;
   if (!filtered.length) {
-    const el=document.createElement('div'); el.className='meal-list-empty';
-    el.textContent = meals.length ? 'No meals found.' : 'No meals yet. Click + New.';
+    const el=document.createElement('div'); el.className='empty-state';
+    if (meals.length) {
+      el.textContent = 'No meals match your search.';
+    } else {
+      el.innerHTML = ICO.utensils + '<div class="empty-state-title">No meals yet</div><div class="empty-state-sub">Tap "+ New" to create your first meal.</div>';
+    }
     list.appendChild(el); return;
   }
   // Group meals by mealType
@@ -1640,7 +1887,7 @@ function renderMealList() {
     label.textContent = t + ' (' + grouped[t].length + ')';
     const chevron = document.createElement('span');
     chevron.className = 'meal-group-toggle';
-    chevron.innerHTML = '&#x25BC;';
+    chevron.innerHTML = ICO.chevDown;
     header.appendChild(label);
     header.appendChild(chevron);
     list.appendChild(header);
@@ -1661,6 +1908,7 @@ function renderMealList() {
 }
 
 let editorSnapshot = null; // JSON string of editor state when opened
+let loadingEditor = false; // true while showEditor is populating the form
 
 function editorStateString() {
   const data = collectEditor();
@@ -1708,6 +1956,7 @@ function openMeal(id) {
 }
 
 function showEditor(meal) {
+  loadingEditor = true;
   document.getElementById('meal-editor').classList.remove('hidden');
   document.getElementById('editor-name').value  = meal.name  || '';
   document.getElementById('editor-notes').value = meal.notes || '';
@@ -1724,6 +1973,7 @@ function showEditor(meal) {
   const ingList = document.getElementById('ing-list');
   ingList.innerHTML = '';
   for (const ing of meal.ingredients||[]) addIngRow(ing);
+  loadingEditor = false;
   editorSnapshot = editorStateString();
 }
 
@@ -1742,17 +1992,25 @@ function initBrowseDropdowns() {
   const catSel = document.getElementById('browse-cat');
   const ingSel = document.getElementById('browse-ing');
 
-  // Populate category dropdown from ING_BY_CAT keys
-  for (const cat of Object.keys(ING_BY_CAT)) {
-    const opt = document.createElement('option'); opt.value = cat; opt.textContent = cat;
-    catSel.appendChild(opt);
+  // Populate category dropdown from merged ingredients
+  function refreshBrowseCats() {
+    const m = mergedIngByCat();
+    const prev = catSel.value;
+    catSel.innerHTML = '<option value="">Browse by category</option>';
+    for (const cat of Object.keys(m)) {
+      const opt = document.createElement('option'); opt.value = cat; opt.textContent = cat;
+      catSel.appendChild(opt);
+    }
+    catSel.value = prev;
   }
+  refreshBrowseCats();
 
   catSel.addEventListener('change', () => {
     ingSel.innerHTML = '<option value="">Select ingredient</option>';
     const cat = catSel.value;
     if (!cat) { ingSel.disabled = true; return; }
-    const items = (ING_BY_CAT[cat] || []).slice().sort();
+    const m = mergedIngByCat();
+    const items = (m[cat] || []).slice().sort();
     for (const name of items) {
       const opt = document.createElement('option'); opt.value = name; opt.textContent = name;
       ingSel.appendChild(opt);
@@ -1803,7 +2061,7 @@ function addIngRow(data={}) {
 
   // Remove
   const rm = document.createElement('button');
-  rm.className='ing-remove'; rm.type='button'; rm.innerHTML='&#x2715;';
+  rm.className='ing-remove'; rm.type='button'; rm.innerHTML=ICO.x;
   rm.addEventListener('click', ()=>{ row.remove(); autoSaveEditor(); }); row.appendChild(rm);
 
   list.appendChild(row);
@@ -1867,9 +2125,11 @@ function absorbNewCats(data) {
 }
 
 function autoSaveEditor() {
+  if (loadingEditor) return;
   const data = collectEditor();
   if (!data) return;
   absorbNewCats(data);
+  absorbUserIngs(data);
   if (isNewMeal) {
     const m = {id:uid(), ...data};
     meals.push(m); saveMeals(meals);
@@ -1887,6 +2147,7 @@ function saveMeal() {
   const data = collectEditor();
   if (!data) { setStatus('dir-status','Please enter a meal name.',true); return; }
   absorbNewCats(data);
+  absorbUserIngs(data);
   if (isNewMeal) {
     const m = {id:uid(), ...data};
     meals.push(m); saveMeals(meals);
@@ -2000,7 +2261,26 @@ function renderPlanner() {
 
   const labels  = plan.slot_labels||['Breakfast','Lunch','Dinner'];
   const numDays = plan.num_days||7;
-  const mealOpts = ['(none)', ...meals.filter(m=>m.name).sort((a,b)=>a.name.localeCompare(b.name)).map(m=>m.name)];
+  const sortedMeals = meals.filter(m=>m.name).sort((a,b)=>a.name.localeCompare(b.name));
+  // Count duplicate names for disambiguation
+  const nameCount = {};
+  for (const m of sortedMeals) nameCount[m.name] = (nameCount[m.name]||0) + 1;
+  // Build label→id map and suggestions list
+  const labelToId = {};
+  const mealSugs = [];
+  const nameIdx = {};
+  for (const m of sortedMeals) {
+    let label = m.name;
+    if (nameCount[m.name] > 1) {
+      nameIdx[m.name] = (nameIdx[m.name]||0) + 1;
+      label = m.name + ' (' + nameIdx[m.name] + ')';
+    }
+    labelToId[label] = m.id;
+    mealSugs.push(label);
+  }
+  // Reverse map: id→label
+  const idToLabel = {};
+  for (const [lbl2, id] of Object.entries(labelToId)) idToLabel[id] = lbl2;
 
   // Header
   const thead = document.getElementById('p-head'); thead.innerHTML='';
@@ -2019,22 +2299,38 @@ function renderPlanner() {
     const dayPlan = (plan.plan||{})[String(day)]||{};
     for (const lbl of labels) {
       const td = document.createElement('td');
-      const sel = document.createElement('select');
-      for (const name of mealOpts) {
-        const opt=document.createElement('option'); opt.value=name; opt.textContent=name; sel.appendChild(opt);
-      }
       const curId = dayPlan[lbl];
-      const curMeal = curId ? meals.find(m=>m.id===curId) : null;
-      sel.value = curMeal ? curMeal.name : '(none)';
-      sel.addEventListener('change', ()=>{
-        const chosen = sel.value;
-        const m = chosen==='(none)' ? null : meals.find(m=>m.name===chosen);
+      const curLabel = curId ? (idToLabel[curId] || '') : '';
+      const ac = makeAC(td, {
+        suggestions: mealSugs,
+        placeholder: '(none)',
+        value: curLabel,
+        inputClass: 'planner-ac',
+        showAll: true,
+        onSelect: val => {
+          if (!plan.plan) plan.plan={};
+          if (!plan.plan[String(day)]) plan.plan[String(day)]={};
+          plan.plan[String(day)][lbl] = labelToId[val] || null;
+          savePlan(plan);
+        }
+      });
+      // Also save when user clears the field or blurs with a changed value
+      ac.input.addEventListener('blur', () => {
+        const val = ac.get().trim();
         if (!plan.plan) plan.plan={};
         if (!plan.plan[String(day)]) plan.plan[String(day)]={};
-        plan.plan[String(day)][lbl] = m ? m.id : null;
-        savePlan(plan);
+        if (!val) {
+          plan.plan[String(day)][lbl] = null;
+          savePlan(plan);
+        } else if (labelToId[val]) {
+          plan.plan[String(day)][lbl] = labelToId[val];
+          savePlan(plan);
+        } else {
+          // Invalid text — revert to current value
+          ac.set(curId ? (idToLabel[curId] || '') : '');
+        }
       });
-      td.appendChild(sel); tr.appendChild(td);
+      tr.appendChild(td);
     }
     tbody.appendChild(tr);
   }
@@ -2107,6 +2403,20 @@ function generateList() {
   }
 }
 
+function parseQty(str) {
+  if (!str || !str.trim()) return NaN;
+  str = str.trim();
+  // "1 1/2" mixed number
+  const mixed = str.match(/^(\d+)\s+(\d+)\/(\d+)$/);
+  if (mixed) return parseInt(mixed[1]) + parseInt(mixed[2]) / parseInt(mixed[3]);
+  // "1/2" fraction
+  const frac = str.match(/^(\d+)\/(\d+)$/);
+  if (frac) return parseInt(frac[1]) / parseInt(frac[2]);
+  // plain number
+  const n = parseFloat(str);
+  return isNaN(n) ? NaN : n;
+}
+
 function doGenerateList(ids) {
   meals = loadMeals();
   const map = Object.fromEntries(meals.map(m=>[m.id,m]));
@@ -2120,8 +2430,16 @@ function doGenerateList(ids) {
       const key=name.toLowerCase()+'\0'+unit;
       if (agg[key]) {
         const ex=agg[key];
-        const q1=parseFloat(ex.quantity) || 1, q2=parseFloat(ing.quantity) || 1;
-        ex.quantity=String(q1+q2);
+        const q1=parseQty(ex.quantity), q2=parseQty(ing.quantity);
+        if (!isNaN(q1) && !isNaN(q2)) {
+          ex.quantity=String(q1+q2);
+        } else if (!isNaN(q2)) {
+          ex.quantity=ing.quantity;
+        } else {
+          // Both blank/unparseable — track occurrence count
+          ex._count = (ex._count||1) + 1;
+          ex.quantity = '\u00d7' + ex._count;
+        }
         if (!ex.category&&ing.category) ex.category=ing.category;
       } else {
         agg[key]={name, quantity:ing.quantity||'', unit:ing.unit||'', category:ing.category||'Other', checked:false};
@@ -2156,6 +2474,36 @@ function ensureCatOrder() {
   if (changed) saveCatOrder(shopCatOrder);
 }
 
+function longPressBtn(el, onTap, onLong) {
+  let timer = null, fired = false;
+  const start = (e) => {
+    fired = false;
+    timer = setTimeout(() => { fired = true; onLong(); }, 500);
+  };
+  const end = (e) => {
+    clearTimeout(timer);
+    if (!fired) onTap();
+  };
+  const cancel = () => { clearTimeout(timer); };
+  el.addEventListener('mousedown', start);
+  el.addEventListener('mouseup', end);
+  el.addEventListener('mouseleave', cancel);
+  el.addEventListener('touchstart', e => { e.preventDefault(); start(); }, {passive:false});
+  el.addEventListener('touchend', e => { e.preventDefault(); end(); });
+  el.addEventListener('touchcancel', cancel);
+}
+
+function moveCatToEnd(cat, dir) {
+  ensureCatOrder();
+  const oi = shopCatOrder.indexOf(cat); if (oi<0) return;
+  shopCatOrder.splice(oi, 1);
+  if (dir < 0) shopCatOrder.unshift(cat);
+  else shopCatOrder.push(cat);
+  saveCatOrder([...shopCatOrder]);
+  renderShopList();
+  toast(dir < 0 ? 'Moved to top.' : 'Moved to bottom.');
+}
+
 function moveCat(cat, dir) {
   ensureCatOrder();
   // Build the currently visible sorted list to find neighbors
@@ -2177,10 +2525,9 @@ function moveCat(cat, dir) {
 function renderShopList() {
   const wrap = document.getElementById('shop-wrap'); wrap.innerHTML='';
   if (!shopItems.length && addCat===null) {
-    const el=document.createElement('div'); el.className='shopping-placeholder';
-    el.innerHTML='Click &ldquo;Generate from Plan&rdquo; to create your shopping list.<br><small style="font-size:12px;color:#bbb">Or add items manually below.</small>';
+    const el=document.createElement('div'); el.className='empty-state';
+    el.innerHTML=ICO.cart+'<div class="empty-state-title">Shopping list is empty</div><div class="empty-state-sub">Generate from your meal plan or add items manually.</div>';
     wrap.appendChild(el);
-    // Still show global add button
     appendGlobalAdd(wrap);
     return;
   }
@@ -2206,12 +2553,12 @@ function renderShopList() {
     const left=document.createElement('div'); left.style.cssText='display:flex;align-items:center;gap:6px;';
     const h3=document.createElement('h3'); h3.textContent=cat; left.appendChild(h3);
     if (sorted.length>1) {
-      const up=document.createElement('button'); up.className='btn-reorder'; up.innerHTML='&#x2191;'; up.title='Move group up';
-      const dn=document.createElement('button'); dn.className='btn-reorder'; dn.innerHTML='&#x2193;'; dn.title='Move group down';
+      const up=document.createElement('button'); up.className='btn-reorder'; up.innerHTML=ICO.arrowUp; up.title='Tap to move up, hold to move to top';
+      const dn=document.createElement('button'); dn.className='btn-reorder'; dn.innerHTML=ICO.arrowDown; dn.title='Tap to move down, hold to move to bottom';
       if (sorted.indexOf(cat)===0) up.disabled=true;
       if (sorted.indexOf(cat)===sorted.length-1) dn.disabled=true;
-      up.addEventListener('click',()=>moveCat(cat,-1));
-      dn.addEventListener('click',()=>moveCat(cat,+1));
+      longPressBtn(up, ()=>moveCat(cat,-1), ()=>moveCatToEnd(cat,-1));
+      longPressBtn(dn, ()=>moveCat(cat,+1), ()=>moveCatToEnd(cat,+1));
       left.appendChild(up); left.appendChild(dn);
     }
 
@@ -2245,6 +2592,40 @@ function renderShopList() {
   }
 
   appendGlobalAdd(wrap);
+
+  // Update shopping progress bar in the top bar
+  updateShopProgress();
+}
+
+function uncheckAllShop() {
+  if (!shopItems.length) return;
+  const checked = shopItems.filter(i=>i.checked).length;
+  if (!checked) { toast('Nothing to reset.'); return; }
+  modal({
+    title: 'Reset Checked Items?',
+    body: checked + ' checked item' + (checked===1?'':'s') + ' will be unchecked.',
+    okText: 'Reset', okClass: 'btn-danger',
+    onOk: () => {
+      for (const item of shopItems) item.checked = false;
+      saveShopList();
+      collapsedCats.clear();
+      autoHiddenCats.clear();
+      renderShopList();
+      toast('Unchecked all items.');
+    }
+  });
+}
+
+function updateShopProgress() {
+  const prog = document.getElementById('shop-progress');
+  if (!shopItems.length) { prog.style.display = 'none'; return; }
+  const checked = shopItems.filter(i=>i.checked).length;
+  const remaining = shopItems.length - checked;
+  const pct = Math.round((checked/shopItems.length)*100);
+  document.getElementById('shop-progress-fill').style.width = pct+'%';
+  document.getElementById('shop-progress-total').textContent = shopItems.length + ' item' + (shopItems.length===1?'':'s');
+  document.getElementById('shop-progress-remaining').textContent = remaining === 0 ? 'All done!' : remaining + ' remaining';
+  prog.style.display = '';
 }
 
 let globalAddOpen = false;
@@ -2320,18 +2701,22 @@ function makeShopItem(item) {
   const name=document.createElement('span'); name.className='shop-name'+(item.checked?' checked':'');
   name.textContent=item.name;
 
-  const toggle=()=>{ item.checked=cb.checked; name.classList.toggle('checked',item.checked); saveShopList(); checkAutoHide(cat); };
+  const toggle=()=>{ item.checked=cb.checked; name.classList.toggle('checked',item.checked); saveShopList(); updateShopProgress(); checkAutoHide(cat); };
   cb.addEventListener('change',toggle);
   name.addEventListener('click',()=>{ cb.checked=!cb.checked; toggle(); });
 
   const qty=document.createElement('input'); qty.type='text'; qty.className='shop-qty'; qty.placeholder='Qty';
-  qty.value=[item.quantity,item.unit].filter(Boolean).join(' ');
-  qty.addEventListener('change',()=>{ item.quantity=qty.value.trim(); item.unit=''; saveShopList(); });
+  qty.value=item.quantity||'';
+  qty.addEventListener('change',()=>{ item.quantity=qty.value.trim(); saveShopList(); });
 
-  const rm=document.createElement('button'); rm.className='btn btn-danger btn-xs'; rm.innerHTML='&#x2715;';
+  const unit=document.createElement('input'); unit.type='text'; unit.className='shop-unit'; unit.placeholder='Unit';
+  unit.value=item.unit||'';
+  unit.addEventListener('change',()=>{ item.unit=unit.value.trim(); saveShopList(); });
+
+  const rm=document.createElement('button'); rm.className='btn btn-danger btn-xs'; rm.innerHTML=ICO.x;
   rm.addEventListener('click',()=>{ shopItems=shopItems.filter(i=>i!==item); saveShopList(); renderShopList(); });
 
-  row.appendChild(cb); row.appendChild(name); row.appendChild(qty); row.appendChild(rm);
+  row.appendChild(cb); row.appendChild(name); row.appendChild(qty); row.appendChild(unit); row.appendChild(rm);
   return row;
 }
 
@@ -2495,20 +2880,21 @@ function ensureUserCats() {
 }
 
 function renderCatManager() {
-  const sel = document.getElementById('cat-select');
-  const prev = sel.value;
-  sel.innerHTML = '';
+  const wrap = document.getElementById('cat-ac-wrap');
+  wrap.innerHTML = '';
   const cats = allCategories();
-  for (const cat of cats) {
-    const opt = document.createElement('option'); opt.value = cat; opt.textContent = cat;
-    sel.appendChild(opt);
-  }
-  if (prev && sel.querySelector('option[value="'+CSS.escape(prev)+'"]')) sel.value = prev;
+  catAcManager = makeAC(wrap, {
+    suggestions: cats,
+    placeholder: cats.length ? cats.length + ' categor' + (cats.length===1?'y':'ies') + '...' : 'No categories',
+    showAll: true
+  });
 }
 
 function deleteCat() {
-  const name = document.getElementById('cat-select').value;
+  if (!catAcManager) return;
+  const name = catAcManager.get().trim();
   if (!name) return;
+  if (!allCategories().includes(name)) { toast('Select a category first.', true); return; }
   modal({
     title: 'Delete Category?',
     body: '"' + name + '" will be removed from the category list.',
@@ -2524,8 +2910,10 @@ function deleteCat() {
 }
 
 function editCat() {
-  const name = document.getElementById('cat-select').value;
+  if (!catAcManager) return;
+  const name = catAcManager.get().trim();
   if (!name) return;
+  if (!allCategories().includes(name)) { toast('Select a category first.', true); return; }
   const inp = document.createElement('input'); inp.type = 'text'; inp.value = name;
   inp.style.cssText = 'width:100%;margin-top:6px;';
   modal({
@@ -2564,19 +2952,54 @@ function addCustomCat() {
 }
 
 /* ---- Meal Type Manager ---- */
+let catAcManager = null;
+let mealTypeAcManager = null;
+let userIngAc = null;
+
+function renderUserIngManager() {
+  const wrap = document.getElementById('user-ing-ac-wrap');
+  wrap.innerHTML = '';
+  const ui = loadUserIngs();
+  const entries = Object.entries(ui).sort((a,b) => a[0].localeCompare(b[0]));
+  const sugs = entries.map(([name, cat]) => name + ' (' + cat + ')');
+  userIngAc = makeAC(wrap, {
+    suggestions: sugs,
+    placeholder: entries.length ? entries.length + ' custom ingredient' + (entries.length===1?'':'s') + '...' : 'No custom ingredients',
+    showAll: true
+  });
+}
+
+function deleteUserIng() {
+  if (!userIngAc) return;
+  const val = userIngAc.get().trim();
+  if (!val) return;
+  // Extract ingredient name from "name (category)" format
+  const match = val.match(/^(.+?)\s*\(.*\)$/);
+  const name = match ? match[1].trim() : val;
+  const ui = loadUserIngs();
+  if (!ui[name]) { toast('Select a custom ingredient first.', true); return; }
+  delete ui[name];
+  saveUserIngs(ui);
+  renderUserIngManager();
+  toast('Removed "' + name + '".');
+}
+
 function renderMealTypeManager() {
-  const sel = document.getElementById('meal-type-select');
-  sel.innerHTML = '';
-  for (const t of allMealTypes()) {
-    const opt = document.createElement('option'); opt.value = t; opt.textContent = t;
-    sel.appendChild(opt);
-  }
+  const wrap = document.getElementById('meal-type-ac-wrap');
+  wrap.innerHTML = '';
+  const types = allMealTypes();
+  mealTypeAcManager = makeAC(wrap, {
+    suggestions: types,
+    placeholder: types.length ? types.length + ' meal type' + (types.length===1?'':'s') + '...' : 'No meal types',
+    showAll: true
+  });
 }
 
 function deleteMealType() {
-  const sel = document.getElementById('meal-type-select');
-  const name = sel.value;
+  if (!mealTypeAcManager) return;
+  const name = mealTypeAcManager.get().trim();
   if (!name) return;
+  if (!allMealTypes().includes(name)) { toast('Select a meal type first.', true); return; }
   modal({
     title: 'Remove Meal Type?',
     body: 'Remove "' + name + '"? Meals with this type will show under "Other".',
@@ -2592,12 +3015,13 @@ function deleteMealType() {
 }
 
 function editMealType() {
-  const sel = document.getElementById('meal-type-select');
-  const name = sel.value;
+  if (!mealTypeAcManager) return;
+  const name = mealTypeAcManager.get().trim();
   if (!name) return;
+  if (!allMealTypes().includes(name)) { toast('Select a meal type first.', true); return; }
   const inp = document.createElement('input');
   inp.type = 'text'; inp.value = name;
-  inp.style.cssText = 'width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:14px;font-family:inherit;color:var(--text);background:white;outline:none;margin-top:8px;';
+  inp.style.cssText = 'width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:14px;font-family:inherit;color:var(--text);background:var(--bg);outline:none;margin-top:8px;';
   modal({
     title: 'Rename Meal Type',
     body: 'Enter a new name for "' + name + '":',
@@ -2676,6 +3100,7 @@ function importData() {
             if (data.catOrder)   localStorage.setItem(ORDER_KEY,       JSON.stringify(data.catOrder));
             if (data.userCats != null) localStorage.setItem(USER_CATS_KEY, JSON.stringify(data.userCats));
             if (data.mealTypes != null) localStorage.setItem(MEAL_TYPES_KEY, JSON.stringify(data.mealTypes));
+            if (data.userIngs) localStorage.setItem(USER_INGS_KEY, JSON.stringify(data.userIngs));
             // Reload state
             meals = loadMeals();
             plan  = loadPlan();
@@ -3279,6 +3704,19 @@ function init() {
     navigator.serviceWorker.register('./sw.js').catch(() => {});
   }
 
+  // Warn before closing tab/browser with unsaved editor changes
+  window.addEventListener('beforeunload', e => {
+    if (isEditorDirty()) { e.preventDefault(); e.returnValue = ''; }
+  });
+
+  // Dark mode
+  initTheme();
+  document.getElementById('btn-theme').addEventListener('click', toggleTheme);
+
+  // Set SVG icons for undo/redo buttons
+  document.getElementById('btn-undo').innerHTML = ICO.arrowLeft;
+  document.getElementById('btn-redo').innerHTML = ICO.arrowRight;
+
   // Scroll focused inputs into view above mobile keyboard
   document.addEventListener('focusin', e => {
     const el = e.target;
@@ -3310,7 +3748,10 @@ function init() {
 
   // Directory
   document.getElementById('btn-new-meal').addEventListener('click', newMeal);
-  document.getElementById('meal-search').addEventListener('input', renderMealList);
+  const searchInp = document.getElementById('meal-search');
+  const searchClr = document.getElementById('meal-search-clear');
+  searchInp.addEventListener('input', () => { searchClr.style.display = searchInp.value ? 'block' : 'none'; renderMealList(); });
+  searchClr.addEventListener('click', () => { searchInp.value = ''; searchClr.style.display = 'none'; renderMealList(); searchInp.focus(); });
   document.getElementById('btn-add-ing').addEventListener('click', ()=>addIngRow());
   document.getElementById('btn-add-ing-bottom').addEventListener('click', ()=>addIngRow());
   initBrowseDropdowns();
@@ -3347,6 +3788,10 @@ function init() {
   document.getElementById('btn-edit-meal-type').addEventListener('click', editMealType);
   renderMealTypeManager();
 
+  // Custom ingredients
+  document.getElementById('btn-del-user-ing').addEventListener('click', deleteUserIng);
+  renderUserIngManager();
+
   // AI Recipe Parser
   document.getElementById('btn-save-ai-key').addEventListener('click', handleSaveKey);
   document.getElementById('btn-clear-ai-key').addEventListener('click', handleClearKey);
@@ -3364,6 +3809,7 @@ function init() {
   document.getElementById('btn-gen-planner').addEventListener('click', () => { generateList(); switchTab('shopping'); });
   document.getElementById('btn-gen').addEventListener('click', generateList);
   document.getElementById('btn-copy').addEventListener('click', copyList);
+  document.getElementById('btn-uncheck-all').addEventListener('click', uncheckAllShop);
 
   // Undo / Redo
   document.getElementById('btn-undo').addEventListener('click', undo);
