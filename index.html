@@ -822,12 +822,7 @@
     <!-- ===== MEAL PLANNER ===== -->
     <div id="tab-planner" class="tab-content hidden">
       <div class="planner-bar">
-        <label>Days:</label>
-        <input type="number" id="p-days" value="7" min="1" max="31">
-        <label>Meals/day:</label>
-        <input type="number" id="p-slots" value="3" min="1" max="6">
-        <button class="btn btn-primary btn-sm" id="btn-apply">Apply</button>
-        <button class="btn-icon" id="btn-labels" title="Edit Labels"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.85 0 0 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg></button>
+        <button class="btn-icon" id="btn-labels" title="Edit Settings"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.85 0 0 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg></button>
         <div class="planner-actions">
           <button class="btn btn-primary btn-sm" id="btn-gen-planner">Generate List</button>
           <button class="btn btn-danger btn-sm" id="btn-reset">Reset Plan</button>
@@ -851,7 +846,7 @@
           <span id="shop-progress-remaining"></span>
         </div>
         <div class="spacer"></div>
-        <button class="btn btn-primary btn-xs" id="btn-gen">Generate from Plan</button>
+        <button class="btn btn-primary btn-xs" id="btn-gen" style="display:none;">Generate from Plan</button>
         <button class="btn btn-secondary btn-xs" id="btn-copy">Copy</button>
         <button class="btn btn-danger btn-xs" id="btn-uncheck-all">Reset</button>
       </div>
@@ -942,7 +937,7 @@
 /* =====================================================================
    VERSION — change this to update the version shown in the Data tab
 ===================================================================== */
-const APP_VERSION = 'v1.8';
+const APP_VERSION = 'v1.9';
 
 /* =====================================================================
    COMMON INGREDIENTS DATA
@@ -2256,8 +2251,6 @@ function importMealFromClipboard() {
 function renderPlanner() {
   plan  = loadPlan();
   meals = loadMeals();
-  document.getElementById('p-days').value  = plan.num_days||7;
-  document.getElementById('p-slots').value = (plan.slot_labels||[]).length||3;
 
   const labels  = plan.slot_labels||['Breakfast','Lunch','Dinner'];
   const numDays = plan.num_days||7;
@@ -2336,34 +2329,59 @@ function renderPlanner() {
   }
 }
 
-function applyPlanner() {
-  const d = Math.max(1, parseInt(document.getElementById('p-days').value)||7);
-  const s = Math.max(1, Math.min(6, parseInt(document.getElementById('p-slots').value)||3));
-  plan = loadPlan();
-  plan.num_days = d;
-  const cur = plan.slot_labels||[];
-  if (s>cur.length) for(let i=cur.length+1;i<=s;i++) cur.push('Meal '+i);
-  else if (s<cur.length) cur.splice(s);
-  plan.slot_labels=cur;
-  savePlan(plan); renderPlanner(); plannerStatus('Settings applied!');
-}
 
 function editLabels() {
   plan = loadPlan();
   const labels = [...(plan.slot_labels||['Breakfast','Lunch','Dinner'])];
   const frag = document.createDocumentFragment();
-  const inputs = [];
-  for (let i=0;i<labels.length;i++) {
-    const row=document.createElement('div'); row.className='label-row';
-    const lbl=document.createElement('label'); lbl.textContent='Slot '+(i+1);
-    const inp=document.createElement('input'); inp.type='text'; inp.value=labels[i];
-    row.appendChild(lbl); row.appendChild(inp); frag.appendChild(row); inputs.push(inp);
+
+  // Days control
+  const daysRow = document.createElement('div'); daysRow.className='label-row';
+  const daysLbl = document.createElement('label'); daysLbl.textContent='Days';
+  const daysInp = document.createElement('input'); daysInp.type='number'; daysInp.value=plan.num_days||7; daysInp.min=1; daysInp.max=31;
+  daysRow.appendChild(daysLbl); daysRow.appendChild(daysInp); frag.appendChild(daysRow);
+
+  // Meals/day control
+  const slotsRow = document.createElement('div'); slotsRow.className='label-row';
+  const slotsLbl = document.createElement('label'); slotsLbl.textContent='Meals/day';
+  const slotsInp = document.createElement('input'); slotsInp.type='number'; slotsInp.value=labels.length; slotsInp.min=1; slotsInp.max=6;
+  slotsRow.appendChild(slotsLbl); slotsRow.appendChild(slotsInp); frag.appendChild(slotsRow);
+
+  // Separator
+  const sep = document.createElement('hr'); sep.style.margin='10px 0'; frag.appendChild(sep);
+
+  // Slot label inputs
+  const labelContainer = document.createElement('div');
+  let inputs = [];
+  function renderLabelInputs(count) {
+    labelContainer.innerHTML='';
+    inputs = [];
+    for (let i=0;i<count;i++) {
+      const row=document.createElement('div'); row.className='label-row';
+      const lbl=document.createElement('label'); lbl.textContent='Slot '+(i+1);
+      const inp=document.createElement('input'); inp.type='text'; inp.value=labels[i]||'Meal '+(i+1);
+      row.appendChild(lbl); row.appendChild(inp); labelContainer.appendChild(row); inputs.push(inp);
+    }
   }
+  renderLabelInputs(labels.length);
+  slotsInp.addEventListener('input', () => {
+    const n = Math.max(1, Math.min(6, parseInt(slotsInp.value)||labels.length));
+    // Preserve current input values before re-rendering
+    for (let i=0;i<inputs.length&&i<labels.length;i++) labels[i]=inputs[i].value;
+    while(labels.length<n) labels.push('Meal '+(labels.length+1));
+    renderLabelInputs(n);
+  });
+  frag.appendChild(labelContainer);
+
   modal({
-    title:'Edit Slot Labels', extra:frag, okText:'Save',
+    title:'Planner Settings', extra:frag, okText:'Save',
     onOk:()=>{
+      const d = Math.max(1, parseInt(daysInp.value)||7);
+      const s = Math.max(1, Math.min(6, parseInt(slotsInp.value)||3));
+      plan.num_days = d;
       plan.slot_labels = inputs.map((inp,i)=>inp.value.trim()||'Meal '+(i+1));
-      savePlan(plan); renderPlanner(); plannerStatus('Labels updated!');
+      if (plan.slot_labels.length > s) plan.slot_labels.splice(s);
+      savePlan(plan); renderPlanner(); plannerStatus('Settings updated!');
     }
   });
 }
@@ -3763,7 +3781,6 @@ function init() {
   document.getElementById('back-btn').addEventListener('click', () => guardEditorExit(closeEditor));
 
   // Planner
-  document.getElementById('btn-apply').addEventListener('click', applyPlanner);
   document.getElementById('btn-labels').addEventListener('click', editLabels);
   document.getElementById('btn-reset').addEventListener('click', resetPlan);
 
