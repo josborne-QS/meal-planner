@@ -9,10 +9,11 @@
   <link id="touch-icon" rel="apple-touch-icon">
   <link id="favicon" rel="icon" type="image/png">
   <title>Meal Planner &amp; Grocery List</title>
-  <script>if(localStorage.getItem('mplanner_theme')==='dark')document.documentElement.setAttribute('data-theme','dark');</script>
+  <script>try{if(localStorage.getItem('mplanner_theme')==='dark')document.documentElement.setAttribute('data-theme','dark');var ts=parseFloat(localStorage.getItem('mplanner_textsize'));if(ts>=0.8&&ts<=1.6)document.documentElement.style.setProperty('--text-scale',ts);}catch(e){}</script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
+      --text-scale: 1; /* multiplies every text size; set from Settings > Text Size */
       --accent: #2a9d8f;
       --accent-hover: #21867a;
       --accent-light: #e0f2f0;
@@ -47,7 +48,7 @@
     html, body {
       height: 100%;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      font-size: 14px;
+      font-size: calc(14px * var(--text-scale));
       color: var(--text);
       background: var(--bg);
       -webkit-tap-highlight-color: transparent;
@@ -67,15 +68,15 @@
       position: relative;
       z-index: 10;
     }
-    .app-title { font-size: 15px; font-weight: 700; color: var(--accent); white-space: nowrap; padding-right: 6px; }
+    .app-title { font-size: calc(15px * var(--text-scale)); font-weight: 700; color: var(--accent); white-space: nowrap; padding-right: 6px; }
     .title-group { display: flex; align-items: center; gap: 6px; }
-    .title-group .btn-icon { font-size: 13px; padding: 4px 14px; }
+    .title-group .btn-icon { font-size: calc(13px * var(--text-scale)); padding: 4px 14px; }
     .btn-icon:disabled { opacity: 0.3; cursor: default; pointer-events: none; }
     .tabs { display: flex; overflow-x: auto; -webkit-overflow-scrolling: touch; flex: 1; }
     .tab-btn {
       padding: 13px 14px;
       border: none; background: none; cursor: pointer;
-      font-size: 13px; font-weight: 600;
+      font-size: calc(13px * var(--text-scale)); font-weight: 600;
       color: var(--text-light);
       border-bottom: 3px solid transparent;
       white-space: nowrap;
@@ -95,15 +96,21 @@
       border-radius: 10px; padding: 24px 20px;
       box-shadow: 0 1px 3px rgba(0,0,0,.04);
     }
-    .data-card h3 { font-size: 16px; margin-bottom: 4px; }
-    .data-card p { font-size: 13px; color: var(--text-light); margin-bottom: 14px; }
+    .data-card h3 { font-size: calc(16px * var(--text-scale)); margin-bottom: 4px; }
+    .data-card p { font-size: calc(13px * var(--text-scale)); color: var(--text-light); margin-bottom: 14px; }
+    .text-size-options { display: flex; flex-wrap: wrap; gap: 6px; }
+    .text-size-btn {
+      border: 1px solid var(--border); background: var(--bg); color: var(--text); border-radius: 6px;
+      padding: 7px 11px; font-family: inherit; font-size: calc(13px * var(--text-scale)); cursor: pointer;
+    }
+    .text-size-btn.active { background: var(--accent); border-color: var(--accent); color: white; }
     .version-bar {
       display: flex; align-items: center; gap: 10px; margin-top: 12px;
       padding: 10px 14px; background: var(--panel); border: 1px solid var(--border);
       border-radius: 8px; width: 100%; max-width: 360px;
     }
     .version-badge {
-      font-size: 12px; font-weight: 600; color: var(--accent);
+      font-size: calc(12px * var(--text-scale)); font-weight: 600; color: var(--accent);
       background: var(--accent-light); padding: 3px 10px;
       border-radius: 20px; letter-spacing: 0.5px;
     }
@@ -113,7 +120,7 @@
     .cat-manage-row select { flex: 1; }
     .btn-icon {
       background: none; border: 1px solid var(--border); border-radius: 6px;
-      cursor: pointer; padding: 6px 8px; font-size: 14px; line-height: 1;
+      cursor: pointer; padding: 6px 8px; font-size: calc(14px * var(--text-scale)); line-height: 1;
       color: var(--text-light); transition: background .15s, color .15s, border-color .15s;
     }
     .btn-icon:hover { background: var(--accent-light); color: var(--accent); border-color: var(--accent); }
@@ -128,7 +135,7 @@
     .btn {
       display: inline-flex; align-items: center; justify-content: center;
       padding: 8px 14px; border: none; border-radius: 6px;
-      font-size: 14px; font-weight: 500; cursor: pointer;
+      font-size: calc(14px * var(--text-scale)); font-weight: 500; cursor: pointer;
       transition: background .15s; white-space: nowrap; gap: 4px;
       font-family: inherit;
     }
@@ -139,8 +146,8 @@
     .btn-danger:hover { background: var(--danger-hover); }
     .btn-secondary { background: var(--gray); color: white; }
     .btn-secondary:hover { background: var(--gray-hover); }
-    .btn-sm { padding: 6px 11px; font-size: 13px; }
-    .btn-xs { padding: 4px 8px; font-size: 12px; }
+    .btn-sm { padding: 6px 11px; font-size: calc(13px * var(--text-scale)); }
+    .btn-xs { padding: 4px 8px; font-size: calc(12px * var(--text-scale)); }
 
     /* ---- Inputs ---- */
     input[type="text"], input[type="number"], select {
@@ -148,7 +155,7 @@
       padding: 8px 10px;
       border: 1px solid var(--border);
       border-radius: 6px;
-      font-size: 14px;
+      font-size: calc(14px * var(--text-scale));
       font-family: inherit;
       color: var(--text);
       background: var(--bg);
@@ -179,12 +186,12 @@
       padding: 12px 12px 8px;
       display: flex; align-items: center; justify-content: space-between;
     }
-    .dir-left-header h2 { font-size: 16px; font-weight: 700; }
+    .dir-left-header h2 { font-size: calc(16px * var(--text-scale)); font-weight: 700; }
     .dir-search { padding: 0 10px 8px; position: relative; }
     .dir-search-clear {
       position: absolute; right: 16px; top: 50%; transform: translateY(-50%);
       background: none; border: none; cursor: pointer; color: var(--text-muted);
-      font-size: 16px; padding: 2px 6px; line-height: 1; display: none;
+      font-size: calc(16px * var(--text-scale)); padding: 2px 6px; line-height: 1; display: none;
     }
     .dir-search-clear:hover { color: var(--text); }
     .meal-list {
@@ -193,7 +200,7 @@
     }
     .meal-list-item {
       padding: 10px 12px; border-radius: 6px;
-      font-size: 14px; font-weight: 500; color: var(--text);
+      font-size: calc(14px * var(--text-scale)); font-weight: 500; color: var(--text);
       transition: background .1s, color .1s; margin-bottom: 2px;
     }
     .meal-list-item { display: flex; align-items: center; justify-content: space-between; }
@@ -206,16 +213,16 @@
     .meal-list-item.selected .meal-tag-planned { background: rgba(255,255,255,0.7); }
     .meal-list-key {
       display: none; align-items: center; gap: 5px;
-      padding: 2px 12px 6px; font-size: 11px; color: var(--text-light);
+      padding: 2px 12px 6px; font-size: calc(11px * var(--text-scale)); color: var(--text-light);
     }
     .meal-list-key.visible { display: flex; }
     .meal-list-key-dot {
       width: 8px; height: 8px; border-radius: 50%;
       background: var(--accent); flex-shrink: 0;
     }
-    .meal-list-empty { color: var(--text-muted); font-size: 13px; padding: 16px 10px; text-align: center; }
+    .meal-list-empty { color: var(--text-muted); font-size: calc(13px * var(--text-scale)); padding: 16px 10px; text-align: center; }
     .meal-list-group-header {
-      font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+      font-size: calc(11px * var(--text-scale)); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
       color: var(--text-light); padding: 10px 12px 4px; border-bottom: 1px solid var(--border);
       margin-top: 2px; display: flex; align-items: center; justify-content: space-between;
       cursor: pointer; user-select: none;
@@ -223,7 +230,7 @@
     .meal-list-group-header:first-child { margin-top: 0; }
     .meal-list-group-header:hover { color: var(--text); }
     .meal-group-toggle {
-      font-size: 10px; transition: transform .15s; display: inline-block;
+      font-size: calc(10px * var(--text-scale)); transition: transform .15s; display: inline-block;
     }
     .meal-list-group-header.collapsed .meal-group-toggle { transform: rotate(-90deg); }
     .meal-list-group-items.collapsed { display: none; }
@@ -240,10 +247,10 @@
       display: flex;
       align-items: center; gap: 4px;
       background: none; border: none; cursor: pointer;
-      font-size: 14px; font-weight: 600; color: var(--accent);
+      font-size: calc(14px * var(--text-scale)); font-weight: 600; color: var(--accent);
     }
     .meal-editor { padding: 12px 18px 24px; max-width: 680px; }
-    .field-label { font-size: 13px; font-weight: 600; margin-bottom: 5px; display: block; }
+    .field-label { font-size: calc(13px * var(--text-scale)); font-weight: 600; margin-bottom: 5px; display: block; }
     .field-group { margin-bottom: 14px; }
 
     /* Ingredient rows */
@@ -254,7 +261,7 @@
     .ing-browse select { flex: 1; min-width: 0; }
     #browse-cat { flex: 1.2; }
     .ing-col-labels { display: none; }
-    .ing-col-label { font-size: 11px; color: var(--text-light); font-weight: 500; padding-left: 2px; }
+    .ing-col-label { font-size: calc(11px * var(--text-scale)); color: var(--text-light); font-weight: 500; padding-left: 2px; }
     .ing-row {
       display: grid;
       grid-template-columns: 1fr 36px;
@@ -272,14 +279,14 @@
     .ing-remove {
       width: 32px; height: 32px;
       background: var(--danger); color: white; border: none;
-      border-radius: 5px; cursor: pointer; font-size: 13px;
+      border-radius: 5px; cursor: pointer; font-size: calc(13px * var(--text-scale));
       display: flex; align-items: center; justify-content: center;
       align-self: center; flex-shrink: 0;
     }
     .ing-remove:hover { background: var(--danger-hover); }
 
     .editor-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; padding-bottom: 4px; }
-    .status-msg { font-size: 12px; margin-top: 6px; min-height: 18px; }
+    .status-msg { font-size: calc(12px * var(--text-scale)); margin-top: 6px; min-height: 18px; }
     .status-ok { color: var(--accent); }
     .status-err { color: var(--danger); }
 
@@ -292,22 +299,22 @@
       border-bottom: 1px solid var(--border); flex-shrink: 0;
       max-width: 680px;
     }
-    .planner-bar label { font-size: 13px; white-space: nowrap; }
+    .planner-bar label { font-size: calc(13px * var(--text-scale)); white-space: nowrap; }
     .planner-bar input[type="number"] { width: 58px; padding: 6px 8px; }
     .planner-actions { display: flex; gap: 8px; margin-left: auto; }
-    .planner-status { font-size: 12px; padding: 0 14px; color: var(--accent); flex-shrink: 0; }
+    .planner-status { font-size: calc(12px * var(--text-scale)); padding: 0 14px; color: var(--accent); flex-shrink: 0; }
     .planner-grid-wrap { flex: 1; overflow: auto; padding: 0 14px 16px; -webkit-overflow-scrolling: touch; max-width: 680px; }
     .planner-table { border-collapse: collapse; min-width: 100%; }
     .planner-table th {
-      padding: 8px 10px; text-align: left; font-size: 13px; font-weight: 600;
+      padding: 8px 10px; text-align: left; font-size: calc(13px * var(--text-scale)); font-weight: 600;
       border-bottom: 2px solid var(--border); white-space: nowrap;
     }
     .planner-table td { padding: 5px 6px; vertical-align: middle; }
     .planner-table tr:nth-child(even) td { background: var(--row); }
-    .day-cell { font-size: 13px; font-weight: 500; white-space: nowrap; padding: 6px 4px !important; width: 1%; text-align: center; }
-    .planner-table select { min-width: 155px; font-size: 13px; padding: 6px 8px; }
+    .day-cell { font-size: calc(13px * var(--text-scale)); font-weight: 500; white-space: nowrap; padding: 6px 4px !important; width: 1%; text-align: center; }
+    .planner-table select { min-width: 155px; font-size: calc(13px * var(--text-scale)); padding: 6px 8px; }
     .planner-ac { min-width: 155px; }
-    .planner-ac input { font-size: 13px; padding: 6px 8px; }
+    .planner-ac input { font-size: calc(13px * var(--text-scale)); padding: 6px 8px; }
 
     /* ================================================================
        SHOPPING LIST
@@ -319,14 +326,14 @@
       max-width: 680px;
     }
     .shopping-bar .spacer { flex: 1; }
-    .shopping-status { font-size: 12px; padding: 0 14px; color: var(--accent); flex-shrink: 0; }
+    .shopping-status { font-size: calc(12px * var(--text-scale)); padding: 0 14px; color: var(--accent); flex-shrink: 0; }
     .shopping-wrap { flex: 1; overflow-y: auto; padding: 0 14px 24px; -webkit-overflow-scrolling: touch; max-width: 680px; }
-    .shopping-placeholder { color: var(--text-muted); font-size: 15px; text-align: center; margin-top: 60px; line-height: 1.7; }
+    .shopping-placeholder { color: var(--text-muted); font-size: calc(15px * var(--text-scale)); text-align: center; margin-top: 60px; line-height: 1.7; }
     .cat-header {
       display: flex; align-items: center; justify-content: space-between;
       padding: 14px 2px 6px;
     }
-    .cat-header h3 { font-size: 14px; font-weight: 700; }
+    .cat-header h3 { font-size: calc(14px * var(--text-scale)); font-weight: 700; }
     .shop-item {
       display: flex; align-items: center; gap: 6px;
       background: var(--row); border-radius: 6px;
@@ -336,21 +343,23 @@
       width: 16px; height: 16px; min-width: 16px;
       accent-color: var(--accent); cursor: pointer;
     }
-    .shop-name { flex: 1; font-size: 13px; cursor: pointer; user-select: none; line-height: 24px; }
+    .shop-name { flex: 1; font-size: calc(13px * var(--text-scale)); cursor: pointer; user-select: none; line-height: calc(24px * var(--text-scale)); }
     .shop-name.checked { color: var(--text-muted); text-decoration: line-through; }
     /* Amount shown as text; tap it to edit (keeps rows narrow so nothing gets cut off) */
     .shop-amt {
-      flex-shrink: 0; max-width: 45%; text-align: right; font-size: 13px; font-family: inherit;
-      color: var(--text-light); background: none; border: none; border-bottom: 1px dashed var(--border);
+      flex-shrink: 0; max-width: 45%; text-align: right; font-size: calc(13px * var(--text-scale)); font-family: inherit;
+      color: var(--text); background: none; border: none; border-bottom: 1px dashed var(--text-muted);
       padding: 2px 0; cursor: pointer; overflow-wrap: anywhere;
     }
-    .shop-amt.empty { color: var(--text-muted); }
+    .shop-amt.empty { color: var(--text-light); }
     .shop-item.editing { flex-wrap: wrap; }
-    .shop-edit { flex-basis: 100%; display: flex; align-items: center; gap: 6px; padding: 8px 0 2px 22px; }
-    .shop-edit input[type="text"] { height: 32px; padding: 4px 8px; }
-    .shop-edit .shop-edit-qty { flex: 0 0 64px; }
-    .shop-edit .shop-edit-unit { flex: 1 1 80px; min-width: 0; }
-    .shopping-wrap .btn-xs { height: 24px; min-height: 24px; padding: 0 8px; font-size: 12px; line-height: 24px; }
+    .shop-edit { flex-basis: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 8px 0 2px 22px; }
+    .shop-edit input[type="text"] { height: calc(32px * var(--text-scale)); padding: 4px 8px; }
+    .shop-edit .shop-edit-qty { flex: 0 0 calc(64px * var(--text-scale)); }
+    .shop-edit .shop-edit-unit { flex: 1 1 calc(90px * var(--text-scale)); min-width: 0; }
+    /* Buttons stay together and drop to their own line if the text size makes the row too tight */
+    .shop-edit-actions { display: flex; gap: 6px; margin-left: auto; }
+    .shopping-wrap .btn-xs { height: calc(24px * var(--text-scale)); min-height: calc(24px * var(--text-scale)); padding: 0 8px; font-size: calc(12px * var(--text-scale)); line-height: calc(24px * var(--text-scale)); }
     .inline-add {
       display: flex; align-items: center; gap: 6px;
       background: var(--accent-light); border-radius: 6px;
@@ -361,7 +370,7 @@
     .bottom-add { padding: 14px 2px 4px; }
     .btn-reorder {
       background: none; border: 1px solid var(--border); border-radius: 4px;
-      color: var(--text-light); cursor: pointer; padding: 2px 6px; font-size: 13px;
+      color: var(--text-light); cursor: pointer; padding: 2px 6px; font-size: calc(13px * var(--text-scale));
       line-height: 1; transition: background .1s, color .1s; font-family: inherit;
     }
     .btn-reorder:hover:not(:disabled) { background: var(--border); color: var(--text); }
@@ -374,25 +383,25 @@
       overflow-x: auto; -webkit-overflow-scrolling: touch; flex-shrink: 0;
       border-bottom: 1px solid var(--border); max-width: 680px;
     }
-    .store-bar-label { font-size: 12px; color: var(--text-light); white-space: nowrap; }
+    .store-bar-label { font-size: calc(12px * var(--text-scale)); color: var(--text-light); white-space: nowrap; }
     .store-bar select { flex: 1; min-width: 0; max-width: 280px; padding: 6px 8px; }
     .shop-name-wrap { flex: 1; min-width: 0; display: flex; flex-direction: column; cursor: pointer; }
-    .shop-stores { font-size: 11px; line-height: 14px; color: var(--text-light); padding-bottom: 3px; }
+    .shop-stores { font-size: calc(11px * var(--text-scale)); line-height: calc(14px * var(--text-scale)); color: var(--text-light); padding-bottom: 3px; }
     .btn-store {
       background: none; border: 1px solid var(--border); border-radius: 4px; color: var(--text-muted);
       cursor: pointer; height: 24px; padding: 0 6px; line-height: 0; flex-shrink: 0;
     }
     .btn-store.tagged { color: var(--accent); border-color: var(--accent); }
-    .store-hidden-note { font-size: 12px; color: var(--text-light); padding: 10px 2px 0; }
+    .store-hidden-note { font-size: calc(12px * var(--text-scale)); color: var(--text-light); padding: 10px 2px 0; }
     .store-hidden-note button {
       background: none; border: none; color: var(--accent); font: inherit; font-weight: 600;
       cursor: pointer; padding: 0 0 0 4px;
     }
-    .store-pick-row { display: flex; align-items: center; gap: 10px; padding: 8px 2px; font-size: 15px; color: var(--text); cursor: pointer; }
+    .store-pick-row { display: flex; align-items: center; gap: 10px; padding: 8px 2px; font-size: calc(15px * var(--text-scale)); color: var(--text); cursor: pointer; }
     .store-pick-row input { width: 20px; height: 20px; accent-color: var(--accent); flex-shrink: 0; }
-    .store-pick-empty { font-size: 13px; color: var(--text-muted); padding: 4px 2px 8px; }
+    .store-pick-empty { font-size: calc(13px * var(--text-scale)); color: var(--text-muted); padding: 4px 2px 8px; }
     .store-pick-add { display: flex; gap: 6px; margin-top: 8px; }
-    .store-pick-hint { font-size: 12px; color: var(--text-light); margin-top: 10px; }
+    .store-pick-hint { font-size: calc(12px * var(--text-scale)); color: var(--text-light); margin-top: 10px; }
 
     /* ================================================================
        AUTOCOMPLETE
@@ -406,7 +415,7 @@
       z-index: 9999; max-height: 320px; overflow-y: auto;
       -webkit-overflow-scrolling: touch;
     }
-    .ac-item { padding: 9px 12px; cursor: pointer; font-size: 14px; }
+    .ac-item { padding: 9px 12px; cursor: pointer; font-size: calc(14px * var(--text-scale)); }
     .ac-item:hover, .ac-item.hi { background: var(--accent-light); }
 
     /* ================================================================
@@ -422,12 +431,12 @@
       max-width: 380px; width: 100%;
       box-shadow: 0 8px 32px rgba(0,0,0,.2);
     }
-    .modal h3 { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
-    .modal-body { font-size: 14px; color: var(--text-light); margin-bottom: 16px; }
+    .modal h3 { font-size: calc(16px * var(--text-scale)); font-weight: 700; margin-bottom: 8px; }
+    .modal-body { font-size: calc(14px * var(--text-scale)); color: var(--text-light); margin-bottom: 16px; }
     .modal-actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
     .modal-content { margin-bottom: 16px; }
     .label-row { margin-bottom: 8px; }
-    .label-row label { font-size: 12px; color: var(--text-light); margin-bottom: 3px; display: block; }
+    .label-row label { font-size: calc(12px * var(--text-scale)); color: var(--text-light); margin-bottom: 3px; display: block; }
 
     /* ================================================================
        MOBILE — ≤ 640px
@@ -440,9 +449,9 @@
         gap: 2px;
       }
       .title-group { width: 100%; padding-bottom: 2px; }
-      .app-title { font-size: 13px; }
+      .app-title { font-size: calc(13px * var(--text-scale)); }
       .tabs { width: 100%; order: 1; }
-      .tab-btn { padding: 10px 8px; font-size: 12px; flex: 1; text-align: center; }
+      .tab-btn { padding: 10px 8px; font-size: calc(12px * var(--text-scale)); flex: 1; text-align: center; }
       /* Editor panel: full-width padding */
       .meal-editor { padding: 12px 14px 24px; max-width: 100%; }
 
@@ -454,20 +463,20 @@
         gap: 6px;
         flex-wrap: wrap;
       }
-      .planner-bar label { font-size: 12px; }
+      .planner-bar label { font-size: calc(12px * var(--text-scale)); }
       .planner-bar input[type="number"] { width: 52px; }
       .planner-actions { margin-left: auto; }
 
       /* Planner table: better scroll hint */
       .planner-grid-wrap { padding: 8px 8px 16px; }
-      .planner-table select { min-width: 130px; font-size: 13px; }
+      .planner-table select { min-width: 130px; font-size: calc(13px * var(--text-scale)); }
 
       /* Shopping bar */
       .shopping-bar { gap: 6px; }
       .shopping-wrap { padding: 4px 10px 24px; }
 
       /* Prevent iOS auto-zoom on input focus (requires >= 16px) */
-      input[type="text"], input[type="number"], select, textarea { font-size: 16px; }
+      input[type="text"], input[type="number"], select, textarea { font-size: max(16px, calc(16px * var(--text-scale))); }
 
       /* Bigger touch targets */
       .btn { min-height: 40px; padding: 10px 14px; }
@@ -489,13 +498,13 @@
 
     /* ---- Extra small screens (< 380px) ---- */
     @media (max-width: 380px) {
-      .tab-btn { padding: 9px 5px; font-size: 11px; }
-      .btn { font-size: 13px; }
-      .btn-sm { font-size: 12px; }
-      .planner-table th { padding: 6px 4px; font-size: 12px; }
+      .tab-btn { padding: 9px 5px; font-size: calc(11px * var(--text-scale)); }
+      .btn { font-size: calc(13px * var(--text-scale)); }
+      .btn-sm { font-size: calc(12px * var(--text-scale)); }
+      .planner-table th { padding: 6px 4px; font-size: calc(12px * var(--text-scale)); }
       .planner-table td { padding: 4px 3px; }
-      .planner-table select { min-width: 110px; font-size: 12px; }
-      .day-cell { font-size: 12px; padding: 4px 6px !important; }
+      .planner-table select { min-width: 110px; font-size: calc(12px * var(--text-scale)); }
+      .day-cell { font-size: calc(12px * var(--text-scale)); padding: 4px 6px !important; }
     }
     /* ---- Landscape safe areas (notch / camera cutout) ---- */
     @media (orientation: landscape) {
@@ -523,9 +532,9 @@
       display: flex; align-items: center; justify-content: space-between;
       margin-bottom: 18px;
     }
-    .recipe-header h2 { font-size: 20px; font-weight: 700; margin: 0; }
+    .recipe-header h2 { font-size: calc(20px * var(--text-scale)); font-weight: 700; margin: 0; }
     .recipe-close {
-      background: none; border: none; font-size: 22px; cursor: pointer;
+      background: none; border: none; font-size: calc(22px * var(--text-scale)); cursor: pointer;
       color: var(--text-light); padding: 4px 8px; line-height: 1;
     }
     .recipe-close:hover { color: var(--text); }
@@ -533,25 +542,25 @@
     .recipe-section-header {
       display: flex; align-items: center; justify-content: space-between;
       padding: 10px 14px; cursor: pointer; background: var(--panel);
-      font-weight: 600; font-size: 14px; user-select: none;
+      font-weight: 600; font-size: calc(14px * var(--text-scale)); user-select: none;
     }
     .recipe-section-header:hover { background: var(--accent-light); }
-    .recipe-section-toggle { font-size: 12px; color: var(--text-light); transition: transform .15s; }
+    .recipe-section-toggle { font-size: calc(12px * var(--text-scale)); color: var(--text-light); transition: transform .15s; }
     .recipe-section.collapsed .recipe-section-toggle { transform: rotate(-90deg); }
     .recipe-section.collapsed .recipe-section-body { display: none; }
     .recipe-section-body { padding: 10px 14px; }
-    .recipe-ing { font-size: 14px; padding: 4px 0; color: var(--text); }
-    .recipe-notes { font-size: 14px; color: var(--text); white-space: pre-wrap; }
+    .recipe-ing { font-size: calc(14px * var(--text-scale)); padding: 4px 0; color: var(--text); }
+    .recipe-notes { font-size: calc(14px * var(--text-scale)); color: var(--text); white-space: pre-wrap; }
     .recipe-step {
       display: flex; align-items: flex-start; gap: 10px;
-      padding: 8px 0; font-size: 14px; cursor: pointer;
+      padding: 8px 0; font-size: calc(14px * var(--text-scale)); cursor: pointer;
       transition: opacity .15s, color .15s;
     }
     .recipe-step input[type="checkbox"] { margin-top: 2px; flex-shrink: 0; width: 18px; height: 18px; cursor: pointer; }
     .recipe-step.done .recipe-step-text { text-decoration: line-through; color: var(--text-muted); }
     .recipe-step-num { font-weight: 700; color: var(--accent); min-width: 22px; }
     .recipe-step-text { flex: 1; }
-    .recipe-empty { font-size: 13px; color: var(--text-muted); font-style: italic; }
+    .recipe-empty { font-size: calc(13px * var(--text-scale)); color: var(--text-muted); font-style: italic; }
     .recipe-bottom { margin-top: 16px; text-align: center; }
     .recipe-edit-textarea { margin-bottom: 10px; }
     .recipe-edit-toggle { margin-right: 8px; }
@@ -561,7 +570,7 @@
       padding: 8px 10px;
       border: 1px solid var(--border);
       border-radius: 6px;
-      font-size: 14px;
+      font-size: calc(14px * var(--text-scale));
       font-family: inherit;
       color: var(--text);
       background: var(--bg);
@@ -576,7 +585,7 @@
       display: flex; align-items: center; gap: 6px; margin-bottom: 8px;
     }
     .ai-key-row input { flex: 1; min-width: 0; }
-    .ai-status { font-size: 12px; min-height: 18px; margin-top: 4px; }
+    .ai-status { font-size: calc(12px * var(--text-scale)); min-height: 18px; margin-top: 4px; }
 
     .ai-parse-overlay {
       position: fixed; inset: 0; background: rgba(0,0,0,.5);
@@ -590,7 +599,7 @@
       box-shadow: 0 8px 32px rgba(0,0,0,.25);
       margin: auto;
     }
-    .ai-parse-panel h3 { font-size: 16px; font-weight: 700; margin-bottom: 12px; }
+    .ai-parse-panel h3 { font-size: calc(16px * var(--text-scale)); font-weight: 700; margin-bottom: 12px; }
     .ai-parse-panel textarea { min-height: 180px; margin-bottom: 12px; }
     .ai-parse-actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; flex-shrink: 0; }
     .ai-spinner {
@@ -600,7 +609,7 @@
       vertical-align: middle; margin-right: 6px;
     }
     @keyframes ai-spin { to { transform: rotate(360deg); } }
-    .ai-parse-error { font-size: 13px; color: var(--danger); margin-top: 8px; }
+    .ai-parse-error { font-size: calc(13px * var(--text-scale)); color: var(--danger); margin-top: 8px; }
     .ai-parse-image-row {
       display: flex; align-items: center; gap: 8px; margin-bottom: 12px; flex-wrap: wrap;
     }
@@ -611,15 +620,15 @@
     }
     .ai-parse-image-remove {
       background: var(--danger); color: white; border: none; border-radius: 4px;
-      padding: 2px 8px; font-size: 12px; cursor: pointer;
+      padding: 2px 8px; font-size: calc(12px * var(--text-scale)); cursor: pointer;
     }
     .ai-parse-or {
-      font-size: 12px; color: var(--text-light); text-align: center; margin-bottom: 10px;
+      font-size: calc(12px * var(--text-scale)); color: var(--text-light); text-align: center; margin-bottom: 10px;
     }
 
     @media (max-width: 640px) {
       .ai-parse-panel { max-width: 100%; padding: 18px; }
-      .ai-parse-panel textarea { font-size: 16px; }
+      .ai-parse-panel textarea { font-size: max(16px, calc(16px * var(--text-scale))); }
     }
 
     /* ---- AI Generate ---- */
@@ -630,21 +639,21 @@
       margin: auto; display: flex; flex-direction: column;
       max-height: calc(100vh - 48px);
     }
-    .ai-gen-panel h3 { font-size: 16px; font-weight: 700; margin-bottom: 12px; flex-shrink: 0; }
+    .ai-gen-panel h3 { font-size: calc(16px * var(--text-scale)); font-weight: 700; margin-bottom: 12px; flex-shrink: 0; }
     .ai-gen-filters { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; flex-shrink: 0; }
-    .ai-gen-filters select { flex: 1; min-width: 120px; font-size: 14px; }
+    .ai-gen-filters select { flex: 1; min-width: 120px; font-size: calc(14px * var(--text-scale)); }
     .ai-gen-results { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; }
     .ai-gen-card {
       border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px;
       background: var(--panel); transition: opacity .2s;
     }
     .ai-gen-card.added { opacity: .45; pointer-events: none; }
-    .ai-gen-card-name { font-weight: 700; font-size: 14px; margin-bottom: 4px; }
-    .ai-gen-card-meta { font-size: 12px; color: var(--text-light); margin-bottom: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .ai-gen-card-name { font-weight: 700; font-size: calc(14px * var(--text-scale)); margin-bottom: 4px; }
+    .ai-gen-card-meta { font-size: calc(12px * var(--text-scale)); color: var(--text-light); margin-bottom: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .ai-gen-card-actions { display: flex; gap: 6px; }
     @media (max-width: 640px) {
       .ai-gen-panel { max-width: 100%; padding: 18px; }
-      .ai-gen-panel textarea { font-size: 16px; }
+      .ai-gen-panel textarea { font-size: max(16px, calc(16px * var(--text-scale))); }
     }
 
     /* ---- Animations ---- */
@@ -669,7 +678,7 @@
       pointer-events: auto;
       background: var(--text); color: var(--bg);
       padding: 10px 18px; border-radius: 8px;
-      font-size: 13px; font-weight: 500;
+      font-size: calc(13px * var(--text-scale)); font-weight: 500;
       box-shadow: 0 4px 16px rgba(0,0,0,.18);
       animation: toastIn .25s ease-out;
       max-width: 320px;
@@ -687,7 +696,7 @@
 
     /* ---- Shopping Progress ---- */
     .shop-progress {
-      display: flex; align-items: center; gap: 8px; font-size: 12px;
+      display: flex; align-items: center; gap: 8px; font-size: calc(12px * var(--text-scale));
       color: var(--text-light); white-space: nowrap;
     }
     .shop-progress-bar {
@@ -706,8 +715,8 @@
       color: var(--text-muted);
     }
     .empty-state svg { margin-bottom: 12px; opacity: .4; }
-    .empty-state-title { font-size: 15px; font-weight: 600; color: var(--text-light); margin-bottom: 4px; }
-    .empty-state-sub { font-size: 13px; }
+    .empty-state-title { font-size: calc(15px * var(--text-scale)); font-weight: 600; color: var(--text-light); margin-bottom: 4px; }
+    .empty-state-sub { font-size: calc(13px * var(--text-scale)); }
 
     /* ---- Checkbox animation ---- */
     .shop-item input[type="checkbox"] {
@@ -903,10 +912,15 @@
           <div style="flex:1"></div>
           <button class="theme-toggle" id="btn-theme" title="Toggle dark mode"></button>
         </div>
+        <div class="data-card">
+          <h3>Text Size</h3>
+          <p>Make text bigger or smaller on this device</p>
+          <div class="text-size-options" id="text-size-options"></div>
+        </div>
         <div class="data-card" id="file-link-card" style="display:none">
           <h3>Auto-Save to File</h3>
           <p>Link a JSON file to auto-save all changes to disk</p>
-          <p id="file-status" style="font-size:13px;font-weight:500;margin-bottom:10px;">No file linked</p>
+          <p id="file-status" style="font-size: calc(13px * var(--text-scale));font-weight:500;margin-bottom:10px;">No file linked</p>
           <div style="display:flex;gap:8px;">
             <button class="btn btn-primary" id="btn-link-file">Link Data File</button>
             <button class="btn btn-secondary" id="btn-unlink-file" style="display:none">Unlink</button>
@@ -973,7 +987,7 @@
           <h3>AI Features</h3>
           <p>Enter a Claude API key to enable AI Parse and AI Generate</p>
           <div class="ai-key-row">
-            <input type="password" id="ai-key-input" placeholder="sk-ant-..." style="flex:1;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:14px;font-family:inherit;color:var(--text);background:var(--bg);outline:none;">
+            <input type="password" id="ai-key-input" placeholder="sk-ant-..." style="flex:1;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size: calc(14px * var(--text-scale));font-family:inherit;color:var(--text);background:var(--bg);outline:none;">
             <button class="btn btn-primary btn-sm" id="btn-save-ai-key">Save Key</button>
             <button class="btn btn-danger btn-sm hidden" id="btn-clear-ai-key">Remove</button>
           </div>
@@ -990,7 +1004,7 @@
 /* =====================================================================
    VERSION — change this to update the version shown in the Data tab
 ===================================================================== */
-const APP_VERSION = 'v1.11';
+const APP_VERSION = 'v1.12';
 
 /* =====================================================================
    COMMON INGREDIENTS DATA
@@ -1103,6 +1117,35 @@ function toggleTheme() {
   localStorage.setItem('mplanner_theme', isDark ? 'light' : 'dark');
   updateThemeBtn();
 }
+/* =====================================================================
+   TEXT SIZE — per device, like dark mode (applied early in <head> too)
+===================================================================== */
+const TEXT_SIZE_KEY = 'mplanner_textsize';
+const TEXT_SIZES = [['Smaller', 0.9], ['Default', 1], ['Large', 1.15], ['Larger', 1.3], ['Largest', 1.5]];
+
+function currentTextSize() {
+  const s = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--text-scale'));
+  return s > 0 ? s : 1;
+}
+function setTextSize(scale) {
+  document.documentElement.style.setProperty('--text-scale', scale);
+  try { localStorage.setItem(TEXT_SIZE_KEY, String(scale)); } catch(e){}
+  renderTextSizeOptions();
+}
+function renderTextSizeOptions() {
+  const wrap = document.getElementById('text-size-options');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  const cur = currentTextSize();
+  for (const [label, scale] of TEXT_SIZES) {
+    const b = document.createElement('button');
+    b.className = 'text-size-btn' + (Math.abs(cur - scale) < 0.01 ? ' active' : '');
+    b.textContent = label;
+    b.addEventListener('click', () => setTextSize(scale));
+    wrap.appendChild(b);
+  }
+}
+
 function updateThemeBtn() {
   const btn = document.getElementById('btn-theme');
   if (!btn) return;
@@ -2851,7 +2894,9 @@ function makeShopItem(item) {
     rm.addEventListener('click',()=>{ shopItems=shopItems.filter(i=>i!==item); closeOpenShopEditor=null; saveShopList(); renderShopList(); });
     const done=document.createElement('button'); done.type='button'; done.className='btn btn-secondary btn-xs'; done.textContent='Done';
     done.addEventListener('click',()=>{ commit(); closeAmt(); });
-    editor.append(qty,unit,rm,done);
+    const actions=document.createElement('div'); actions.className='shop-edit-actions';
+    actions.append(rm,done);
+    editor.append(qty,unit,actions);
     row.classList.add('editing'); row.appendChild(editor);
     closeOpenShopEditor=closeAmt;
     qty.focus(); // inside the tap, so iOS opens the keyboard
@@ -3364,7 +3409,7 @@ function editMealType() {
   if (!allMealTypes().includes(name)) { toast('Select a meal type first.', true); return; }
   const inp = document.createElement('input');
   inp.type = 'text'; inp.value = name;
-  inp.style.cssText = 'width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:14px;font-family:inherit;color:var(--text);background:var(--bg);outline:none;margin-top:8px;';
+  inp.style.cssText = 'width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size: calc(14px * var(--text-scale));font-family:inherit;color:var(--text);background:var(--bg);outline:none;margin-top:8px;';
   modal({
     title: 'Rename Meal Type',
     body: 'Enter a new name for "' + name + '":',
@@ -3589,7 +3634,7 @@ function openParseRecipeModal() {
       <span id="ai-parse-img-preview-wrap"></span>
     </div>
     <div style="margin-bottom:10px;">
-      <select id="ai-parse-model" style="font-size:14px;">
+      <select id="ai-parse-model" style="font-size: calc(14px * var(--text-scale));">
         <option value="claude-haiku-4-5-20251001">Haiku 4.5 (fastest)</option>
         <option value="claude-sonnet-4-6">Sonnet 4.6</option>
         <option value="claude-opus-4-6">Opus 4.6 (best)</option>
@@ -3669,7 +3714,7 @@ function openParseRecipeModal() {
       imgPreviewWrap.innerHTML = '';
       if (isPDF) {
         const label = document.createElement('span');
-        label.style.cssText = 'font-size:13px;color:var(--text);';
+        label.style.cssText = 'font-size: calc(13px * var(--text-scale));color:var(--text);';
         label.textContent = file.name;
         imgPreviewWrap.appendChild(label);
       } else {
@@ -3825,8 +3870,8 @@ function openGenerateModal() {
   const panel = document.createElement('div'); panel.className = 'ai-gen-panel';
   panel.innerHTML = `
     <h3>AI Meal Generator</h3>
-    <label style="font-size:12px;color:var(--text-light);">Custom instructions (included in every prompt)</label>
-    <textarea id="ai-gen-instructions" rows="2" placeholder="e.g. Always include recommended internal cook temps for meat, and list the quantity of ingredients used in each step" style="width:100%;margin-top:4px;margin-bottom:10px;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;font-family:inherit;color:var(--text);background:var(--panel);outline:none;resize:vertical;"></textarea>
+    <label style="font-size: calc(12px * var(--text-scale));color:var(--text-light);">Custom instructions (included in every prompt)</label>
+    <textarea id="ai-gen-instructions" rows="2" placeholder="e.g. Always include recommended internal cook temps for meat, and list the quantity of ingredients used in each step" style="width:100%;margin-top:4px;margin-bottom:10px;padding:8px 10px;border:1px solid var(--border);border-radius:6px;font-size: calc(13px * var(--text-scale));font-family:inherit;color:var(--text);background:var(--panel);outline:none;resize:vertical;"></textarea>
     <textarea id="ai-gen-prompt" placeholder="Describe what you'd like... (e.g. quick chicken dinner, vegetarian pasta for 4)" rows="3" style="margin-bottom:12px;width:100%;"></textarea>
     <div class="ai-gen-filters">
       <select id="ai-gen-cuisine">
@@ -4029,6 +4074,7 @@ function init() {
   // Dark mode
   initTheme();
   document.getElementById('btn-theme').addEventListener('click', toggleTheme);
+  renderTextSizeOptions();
 
   // Set SVG icons for undo/redo buttons
   document.getElementById('btn-undo').innerHTML = ICO.arrowLeft;
