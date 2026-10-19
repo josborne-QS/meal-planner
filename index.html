@@ -365,13 +365,7 @@
       border-bottom: 1px solid var(--border); max-width: 680px;
     }
     .store-bar-label { font-size: 12px; color: var(--text-light); white-space: nowrap; }
-    .store-chip {
-      border: 1px solid var(--border); background: var(--bg); color: var(--text);
-      border-radius: 999px; padding: 5px 12px; font-size: 13px; font-family: inherit;
-      white-space: nowrap; cursor: pointer; flex-shrink: 0;
-    }
-    .store-chip.active { background: var(--accent); border-color: var(--accent); color: white; }
-    .store-chip.add { border-style: dashed; color: var(--text-light); }
+    .store-bar select { flex: 1; min-width: 0; max-width: 280px; padding: 6px 8px; }
     .shop-name-wrap { flex: 1; min-width: 0; display: flex; flex-direction: column; cursor: pointer; }
     .shop-stores { font-size: 11px; line-height: 14px; color: var(--text-light); padding-bottom: 3px; }
     .btn-store {
@@ -475,7 +469,6 @@
       .shop-unit { max-width: 64px; }
       .btn-store { height: 32px; padding: 0 8px; }
       .store-bar { padding: 8px 10px; }
-      .store-chip { padding: 7px 14px; font-size: 14px; }
       .meal-list-item { padding: 12px 14px; }
 
       .editor-actions { gap: 6px; }
@@ -988,7 +981,7 @@
 /* =====================================================================
    VERSION — change this to update the version shown in the Data tab
 ===================================================================== */
-const APP_VERSION = 'v1.10';
+const APP_VERSION = 'v1.11';
 
 /* =====================================================================
    COMMON INGREDIENTS DATA
@@ -2609,7 +2602,7 @@ function renderShopList() {
   const hidden = shopItems.length - visible.length;
   if (hidden) {
     const note=document.createElement('div'); note.className='store-hidden-note';
-    note.textContent = hidden + ' item' + (hidden===1?'':'s') + ' only at other stores.';
+    note.textContent = hidden + ' other item' + (hidden===1?'':'s') + ' not tagged for ' + storeFilter + '.';
     const all=document.createElement('button'); all.textContent='Show all';
     all.addEventListener('click', ()=>setStoreFilter(''));
     note.appendChild(all); wrap.appendChild(note);
@@ -2617,7 +2610,7 @@ function renderShopList() {
   if (!visible.length && addCat===null) {
     const el=document.createElement('div'); el.className='empty-state';
     el.innerHTML = ICO.cart + (shopItems.length
-      ? '<div class="empty-state-title"></div><div class="empty-state-sub">Everything left on the list is tagged for other stores.</div>'
+      ? '<div class="empty-state-title"></div><div class="empty-state-sub">Tap Show all, then the tag button next to an item to add it to this store’s list.</div>'
       : '<div class="empty-state-title">Shopping list is empty</div><div class="empty-state-sub">Generate from your meal plan or add items manually.</div>');
     if (shopItems.length) el.querySelector('.empty-state-title').textContent = 'Nothing for ' + storeFilter;
     wrap.appendChild(el);
@@ -2676,6 +2669,7 @@ function renderShopList() {
       ok.addEventListener('click',()=>{
         const n=ac.get().trim(); if(!n) return;
         shopItems.push({name:n,quantity:'',unit:'',category:cat,checked:false});
+        tagForCurrentStore(n);
         saveShopList();
         addCat=null; renderShopList(); shopStatus("Added '"+n+"' to "+cat+'.');
       });
@@ -2758,6 +2752,7 @@ function appendGlobalAdd(wrap) {
       const cat  = catAc.get().trim() || 'Other';
       if (!name) return;
       shopItems.push({ name, quantity: '', unit: '', category: cat, checked: false });
+      tagForCurrentStore(name);
       saveShopList();
       globalAddOpen = false;
       renderShopList();
@@ -2839,13 +2834,21 @@ function saveStoreTags() { persist(STORE_TAGS_KEY, storeTags); }
 function storeKey(item)  { return (item.name||'').trim().toLowerCase(); }
 function storesFor(item) { return storeTags[storeKey(item)] || []; }
 
-// At a store, show what's tagged for it plus anything untagged (it can be bought anywhere).
-// Checked state is shared, so an item tagged for two stores that the first one didn't have
-// stays unchecked and shows up again at the second.
+// At a store, show only the items tagged for it. Checked state is shared, so an item tagged for
+// two stores that the first one didn't have stays unchecked and shows up again at the second.
 function isShownAtStore(item) {
-  if (!storeFilter) return true;
-  const s = storesFor(item);
-  return !s.length || s.includes(storeFilter);
+  return !storeFilter || storesFor(item).includes(storeFilter);
+}
+
+// Items added while shopping at a store belong to that store's list — otherwise they'd be hidden
+// as soon as they're added
+function tagForCurrentStore(name) {
+  if (!storeFilter) return;
+  const key = storeKey({ name });
+  const s = storeTags[key] || [];
+  if (s.includes(storeFilter)) return;
+  storeTags[key] = stores.filter(x => x === storeFilter || s.includes(x)); // keep the stores' display order
+  saveStoreTags();
 }
 function visibleShopItems() { return shopItems.filter(isShownAtStore); }
 
@@ -2892,15 +2895,17 @@ function renderStoreBar() {
   const bar = document.getElementById('store-bar');
   bar.innerHTML = '';
   if (storeFilter && !stores.includes(storeFilter)) storeFilter = ''; // e.g. the store was removed by an undo
-  const label = document.createElement('span'); label.className = 'store-bar-label'; label.textContent = 'Shopping at';
-  bar.appendChild(label);
-  const chip = (text, active, onClick) => {
-    const b = document.createElement('button'); b.className = 'store-chip' + (active ? ' active' : '');
-    b.textContent = text; b.addEventListener('click', onClick); bar.appendChild(b); return b;
-  };
-  chip('All', !storeFilter, () => setStoreFilter(''));
-  for (const s of stores) chip(s, storeFilter === s, () => setStoreFilter(storeFilter === s ? '' : s));
-  chip('+ Store', false, promptNewStore).classList.add('add');
+  const label = document.createElement('label'); label.className = 'store-bar-label'; label.textContent = 'Shopping at';
+  label.htmlFor = 'store-select';
+  const sel = document.createElement('select'); sel.id = 'store-select';
+  for (const [value, text] of [['', 'All items'], ...stores.map(s => [s, s])]) {
+    const o = document.createElement('option'); o.value = value; o.textContent = text; sel.appendChild(o);
+  }
+  sel.value = storeFilter;
+  sel.addEventListener('change', () => setStoreFilter(sel.value));
+  const add = document.createElement('button'); add.className = 'btn btn-primary btn-sm'; add.textContent = '+ Store';
+  add.title = 'Add a store'; add.addEventListener('click', promptNewStore);
+  bar.append(label, sel, add);
 }
 
 function promptNewStore() {
@@ -2949,7 +2954,7 @@ function editItemStores(item) {
   addRow.appendChild(inp); addRow.appendChild(addBtn); box.appendChild(addRow);
 
   const hint = document.createElement('div'); hint.className = 'store-pick-hint';
-  hint.textContent = 'Items with no store show up at every store.';
+  hint.textContent = 'Picking a store at the top of the list shows only the items tagged for it.';
   box.appendChild(hint);
 
   modal({
