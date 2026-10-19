@@ -358,6 +358,38 @@
     .btn-reorder:disabled { opacity: .25; cursor: default; }
     .btn-reorder-wide { padding: 2px 12px; }
 
+    /* ---- Stores ---- */
+    .store-bar {
+      display: flex; align-items: center; gap: 6px; padding: 8px 14px;
+      overflow-x: auto; -webkit-overflow-scrolling: touch; flex-shrink: 0;
+      border-bottom: 1px solid var(--border); max-width: 680px;
+    }
+    .store-bar-label { font-size: 12px; color: var(--text-light); white-space: nowrap; }
+    .store-chip {
+      border: 1px solid var(--border); background: var(--bg); color: var(--text);
+      border-radius: 999px; padding: 5px 12px; font-size: 13px; font-family: inherit;
+      white-space: nowrap; cursor: pointer; flex-shrink: 0;
+    }
+    .store-chip.active { background: var(--accent); border-color: var(--accent); color: white; }
+    .store-chip.add { border-style: dashed; color: var(--text-light); }
+    .shop-name-wrap { flex: 1; min-width: 0; display: flex; flex-direction: column; cursor: pointer; }
+    .shop-stores { font-size: 11px; line-height: 14px; color: var(--text-light); padding-bottom: 3px; }
+    .btn-store {
+      background: none; border: 1px solid var(--border); border-radius: 4px; color: var(--text-muted);
+      cursor: pointer; height: 24px; padding: 0 6px; line-height: 0; flex-shrink: 0;
+    }
+    .btn-store.tagged { color: var(--accent); border-color: var(--accent); }
+    .store-hidden-note { font-size: 12px; color: var(--text-light); padding: 10px 2px 0; }
+    .store-hidden-note button {
+      background: none; border: none; color: var(--accent); font: inherit; font-weight: 600;
+      cursor: pointer; padding: 0 0 0 4px;
+    }
+    .store-pick-row { display: flex; align-items: center; gap: 10px; padding: 8px 2px; font-size: 15px; color: var(--text); cursor: pointer; }
+    .store-pick-row input { width: 20px; height: 20px; accent-color: var(--accent); flex-shrink: 0; }
+    .store-pick-empty { font-size: 13px; color: var(--text-muted); padding: 4px 2px 8px; }
+    .store-pick-add { display: flex; gap: 6px; margin-top: 8px; }
+    .store-pick-hint { font-size: 12px; color: var(--text-light); margin-top: 10px; }
+
     /* ================================================================
        AUTOCOMPLETE
     ================================================================ */
@@ -439,6 +471,11 @@
       .btn-xs { min-height: 32px; padding: 6px 10px; }
       .shop-item { padding: 10px 12px; }
       .shop-item input[type="checkbox"] { width: 22px; height: 22px; min-width: 22px; }
+      .shop-qty { max-width: 48px; }
+      .shop-unit { max-width: 64px; }
+      .btn-store { height: 32px; padding: 0 8px; }
+      .store-bar { padding: 8px 10px; }
+      .store-chip { padding: 7px 14px; font-size: 14px; }
       .meal-list-item { padding: 12px 14px; }
 
       .editor-actions { gap: 6px; }
@@ -850,6 +887,7 @@
         <button class="btn btn-secondary btn-xs" id="btn-copy">Copy</button>
         <button class="btn btn-danger btn-xs" id="btn-uncheck-all">Reset</button>
       </div>
+      <div class="store-bar" id="store-bar"></div>
       <div class="shopping-status" id="shop-status"></div>
       <div class="shopping-wrap" id="shop-wrap"></div>
     </div>
@@ -909,6 +947,19 @@
           </div>
         </div>
         <div class="data-card">
+          <h3>Manage Stores</h3>
+          <p>Tag shopping list items with the stores that carry them, then pick a store on the Shopping tab to see just its items</p>
+          <div class="cat-manage-row">
+            <div id="store-ac-wrap" style="flex:1;min-width:0;"></div>
+            <button class="btn-icon" id="btn-edit-store" title="Rename store"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.85 0 0 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg></button>
+            <button class="btn-icon danger" id="btn-del-store" title="Remove store"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18"/><path d="M6 6l12 12"/></svg></button>
+          </div>
+          <div style="display:flex;gap:6px;margin-top:10px;">
+            <input type="text" id="new-store-input" placeholder="New store name...">
+            <button class="btn btn-primary btn-sm" id="btn-add-store">Add</button>
+          </div>
+        </div>
+        <div class="data-card">
           <h3>Custom Ingredients</h3>
           <p>Ingredients you've added are remembered for quick selection</p>
           <div class="cat-manage-row">
@@ -937,7 +988,7 @@
 /* =====================================================================
    VERSION — change this to update the version shown in the Data tab
 ===================================================================== */
-const APP_VERSION = 'v1.9';
+const APP_VERSION = 'v1.10';
 
 /* =====================================================================
    COMMON INGREDIENTS DATA
@@ -1010,7 +1061,8 @@ const ICO = {
   x:          '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18"/><path d="M6 6l12 12"/></svg>',
   edit:       '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.85 0 0 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>',
   book:       '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>',
-  chevDown:   '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>',
+  tag:        '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2H2v10l9.29 9.29a2.41 2.41 0 0 0 3.42 0l6.58-6.58a2.41 2.41 0 0 0 0-3.42Z"/><path d="M7 7h.01"/></svg>',
+  chevDown:   '<svg width="12" height="12"viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>',
   sun:        '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>',
   moon:       '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>',
   clipboard:  '<svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="4" rx="1"/><path d="M9 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2h-2"/><path d="M9 12h6M9 16h6"/></svg>',
@@ -1057,10 +1109,7 @@ function updateThemeBtn() {
   btn.title = isDark ? 'Switch to light mode' : 'Switch to dark mode';
 }
 
-function loadUserIngs() {
-  try { const r = localStorage.getItem(USER_INGS_KEY); if (r) return JSON.parse(r); } catch(e){}
-  return {};
-}
+function loadUserIngs() { return readJSON(USER_INGS_KEY, {}, isObj); }
 function saveUserIngs(obj) { localStorage.setItem(USER_INGS_KEY, JSON.stringify(obj)); flushToIDB(); if (fileHandle) flushToFile(); }
 
 function mergedIngByCat() {
@@ -1115,6 +1164,21 @@ const USER_CATS_KEY = 'mplanner_usercats';
 const SHOP_KEY      = 'mplanner_shoplist';
 const MEAL_TYPES_KEY = 'mplanner_mealtypes';
 const USER_INGS_KEY  = 'mplanner_useringredients';
+const STORES_KEY     = 'mplanner_stores';
+const STORE_TAGS_KEY = 'mplanner_storetags';
+const STORE_FILTER_KEY = 'mplanner_storefilter'; // which store you're shopping at — a view setting, not undone or exported
+
+// Save a value, recording an undo step and updating the backups
+function persist(key, value) { pushUndo(); localStorage.setItem(key, JSON.stringify(value)); flushToIDB(); if (fileHandle) flushToFile(); }
+
+// Read a saved value, falling back to the default if it's missing, corrupt, or the wrong shape —
+// one bad value (e.g. from an old export) shouldn't stop the whole app from loading
+function readJSON(key, fallback, isValid) {
+  try { const r = localStorage.getItem(key); if (r) { const v = JSON.parse(r); if (isValid(v)) return v; } } catch(e){}
+  return fallback;
+}
+const isObj = v => !!v && typeof v === 'object' && !Array.isArray(v);
+const isArrOrNull = v => v === null || Array.isArray(v);
 
 // File System Access API state
 let fileHandle = null;
@@ -1167,33 +1231,22 @@ const SEED_MEALS = [
 ];
 
 function loadMeals() {
-  try { const r = localStorage.getItem(MEALS_KEY); if (r) return JSON.parse(r); } catch(e){}
-  return JSON.parse(JSON.stringify(SEED_MEALS));
+  return readJSON(MEALS_KEY, null, Array.isArray) || JSON.parse(JSON.stringify(SEED_MEALS));
 }
 function saveMeals(m) { pushUndo(); localStorage.setItem(MEALS_KEY, JSON.stringify(m)); flushToIDB(); if (fileHandle) flushToFile(); }
 
 function loadPlan() {
-  try { const r = localStorage.getItem(PLAN_KEY); if (r) return JSON.parse(r); } catch(e){}
-  return {num_days:7, slot_labels:['Breakfast','Lunch','Dinner'], plan:{}};
+  return readJSON(PLAN_KEY, {num_days:7, slot_labels:['Breakfast','Lunch','Dinner'], plan:{}}, isObj);
 }
 function savePlan(p) { pushUndo(); localStorage.setItem(PLAN_KEY, JSON.stringify(p)); flushToIDB(); if (fileHandle) flushToFile(); }
 
-function loadUserCats() {
-  try { const r=localStorage.getItem(USER_CATS_KEY); if(r) return JSON.parse(r); } catch(e){}
-  return null;
-}
+function loadUserCats() { return readJSON(USER_CATS_KEY, null, isArrOrNull); }
 function saveUserCats(c) { pushUndo(); localStorage.setItem(USER_CATS_KEY, JSON.stringify(c)); flushToIDB(); if (fileHandle) flushToFile(); }
 
-function loadMealTypes() {
-  try { const r=localStorage.getItem(MEAL_TYPES_KEY); if(r) return JSON.parse(r); } catch(e){}
-  return null;
-}
+function loadMealTypes() { return readJSON(MEAL_TYPES_KEY, null, isArrOrNull); }
 function saveMealTypes(t) { pushUndo(); localStorage.setItem(MEAL_TYPES_KEY, JSON.stringify(t)); flushToIDB(); if (fileHandle) flushToFile(); }
 
-function loadShopList() {
-  try { const r = localStorage.getItem(SHOP_KEY); if (r) return JSON.parse(r); } catch(e){}
-  return [];
-}
+function loadShopList() { return readJSON(SHOP_KEY, [], Array.isArray); }
 function saveShopList() { pushUndo(); localStorage.setItem(SHOP_KEY, JSON.stringify(shopItems)); flushToIDB(); if (fileHandle) flushToFile(); }
 
 /* ---- IndexedDB backup (survives localStorage purge on iOS) ---- */
@@ -1206,20 +1259,34 @@ function openBackupDB() {
   });
 }
 
+// Everything that gets backed up, exported, or auto-saved to a file — keep this the single list
+function collectState() {
+  return {
+    meals:     loadMeals(),
+    plan:      loadPlan(),
+    catOrder:  loadCatOrder(),
+    userCats:  loadUserCats(),
+    shopList:  loadShopList(),
+    mealTypes: loadMealTypes(),
+    userIngs:  loadUserIngs(),
+    stores:    loadStores(),
+    storeTags: loadStoreTags(),
+  };
+}
+
+// Write a backup, import, or linked file back into storage (the reverse of collectState).
+// Anything missing from older files is left as it is.
+function applyState(data) {
+  const keys = { meals: MEALS_KEY, plan: PLAN_KEY, catOrder: ORDER_KEY, userCats: USER_CATS_KEY, shopList: SHOP_KEY,
+                 mealTypes: MEAL_TYPES_KEY, userIngs: USER_INGS_KEY, stores: STORES_KEY, storeTags: STORE_TAGS_KEY };
+  for (const [field, key] of Object.entries(keys)) if (data[field] != null) localStorage.setItem(key, JSON.stringify(data[field]));
+}
+
 function flushToIDB() {
   clearTimeout(idbBackupTimer);
   idbBackupTimer = setTimeout(async () => {
     try {
-      const data = {
-        meals:    JSON.parse(localStorage.getItem(MEALS_KEY)  || '[]'),
-        plan:     JSON.parse(localStorage.getItem(PLAN_KEY)   || '{}'),
-        catOrder: JSON.parse(localStorage.getItem(ORDER_KEY)  || '[]'),
-        userCats: JSON.parse(localStorage.getItem(USER_CATS_KEY) || 'null'),
-        shopList: JSON.parse(localStorage.getItem(SHOP_KEY)   || '[]'),
-        mealTypes: JSON.parse(localStorage.getItem(MEAL_TYPES_KEY) || 'null'),
-        userIngs: JSON.parse(localStorage.getItem(USER_INGS_KEY) || '{}'),
-        savedAt:  Date.now(),
-      };
+      const data = { ...collectState(), savedAt: Date.now() };
       const db = await openBackupDB();
       const tx = db.transaction(IDB_BACKUP_STORE, 'readwrite');
       tx.objectStore(IDB_BACKUP_STORE).put(data, 'backup');
@@ -1237,30 +1304,14 @@ async function restoreFromIDB() {
     const data = await new Promise((res, rej) => { req.onsuccess = () => res(req.result); req.onerror = rej; });
     db.close();
     if (!data || (!data.meals && !data.plan)) return false;
-    if (data.meals)    localStorage.setItem(MEALS_KEY,  JSON.stringify(data.meals));
-    if (data.plan)     localStorage.setItem(PLAN_KEY,   JSON.stringify(data.plan));
-    if (data.catOrder) localStorage.setItem(ORDER_KEY,  JSON.stringify(data.catOrder));
-    if (data.userCats != null) localStorage.setItem(USER_CATS_KEY, JSON.stringify(data.userCats));
-    if (data.shopList) localStorage.setItem(SHOP_KEY,   JSON.stringify(data.shopList));
-    if (data.mealTypes != null) localStorage.setItem(MEAL_TYPES_KEY, JSON.stringify(data.mealTypes));
-    if (data.userIngs) localStorage.setItem(USER_INGS_KEY, JSON.stringify(data.userIngs));
+    applyState(data);
     return true;
   } catch (e) { console.warn('IDB restore failed:', e); return false; }
 }
 
 /* ---- File System Access API – auto-save to JSON file ---- */
 function buildStateJSON() {
-  return JSON.stringify({
-    version: 1,
-    exported: new Date().toISOString(),
-    meals:    JSON.parse(localStorage.getItem(MEALS_KEY)  || '[]'),
-    plan:     JSON.parse(localStorage.getItem(PLAN_KEY)   || '{}'),
-    catOrder: JSON.parse(localStorage.getItem(ORDER_KEY)  || '[]'),
-    userCats: JSON.parse(localStorage.getItem(USER_CATS_KEY) || 'null'),
-    shopList: JSON.parse(localStorage.getItem(SHOP_KEY)   || '[]'),
-    mealTypes: JSON.parse(localStorage.getItem(MEAL_TYPES_KEY) || 'null'),
-    userIngs: JSON.parse(localStorage.getItem(USER_INGS_KEY) || '{}'),
-  }, null, 2);
+  return JSON.stringify({ version: 1, exported: new Date().toISOString(), ...collectState() }, null, 2);
 }
 
 function flushToFile() {
@@ -1285,16 +1336,7 @@ async function loadFromFile(handle) {
     const text = await file.text();
     const data = JSON.parse(text);
     if (!data.meals && !data.plan) return false;
-    if (data.meals)    localStorage.setItem(MEALS_KEY,  JSON.stringify(data.meals));
-    if (data.plan)     localStorage.setItem(PLAN_KEY,   JSON.stringify(data.plan));
-    if (data.catOrder) localStorage.setItem(ORDER_KEY,  JSON.stringify(data.catOrder));
-    if (data.userCats != null) localStorage.setItem(USER_CATS_KEY, JSON.stringify(data.userCats));
-    if (data.shopList) localStorage.setItem(SHOP_KEY,   JSON.stringify(data.shopList));
-    if (data.mealTypes != null) localStorage.setItem(MEAL_TYPES_KEY, JSON.stringify(data.mealTypes));
-    if (data.userIngs) localStorage.setItem(USER_INGS_KEY, JSON.stringify(data.userIngs));
-    meals = loadMeals(); plan = loadPlan(); shopCatOrder = loadCatOrder();
-    userCats = loadUserCats(); shopItems = loadShopList();
-    userMealTypes = loadMealTypes();
+    applyState(data); // the caller re-renders, which reloads everything from storage
     return true;
   } catch (e) { console.warn('File load failed:', e); return false; }
 }
@@ -1419,12 +1461,15 @@ let shopCatOrder = [];   // persistent user-defined category order
 let lastGenMealIds = new Set(); // meal IDs from last generated shopping list
 const collapsedCats = new Set(); // collapsed category groups in shopping list
 const autoHiddenCats = new Set(); // categories already auto-hidden after all checked
+let stores = [];         // the user's stores, in display order
+let storeTags = {};      // item name (lowercase) -> stores that carry it; kept by name so tags survive regenerating the list
+let storeFilter = '';    // store currently being shopped at ('' = show everything)
 
 /* =====================================================================
    UNDO / REDO  (per-tab stacks)
 ===================================================================== */
 const UNDO_LIMIT = 20;
-const UNDO_KEYS = [MEALS_KEY, PLAN_KEY, ORDER_KEY, USER_CATS_KEY, SHOP_KEY, MEAL_TYPES_KEY, USER_INGS_KEY];
+const UNDO_KEYS = [MEALS_KEY, PLAN_KEY, ORDER_KEY, USER_CATS_KEY, SHOP_KEY, MEAL_TYPES_KEY, USER_INGS_KEY, STORES_KEY, STORE_TAGS_KEY];
 const tabUndoStacks = { directory:[], planner:[], shopping:[], data:[] };
 const tabRedoStacks = { directory:[], planner:[], shopping:[], data:[] };
 let snapshotPending = false;
@@ -1469,6 +1514,8 @@ function renderAll() {
   userCats = loadUserCats();
   userMealTypes = loadMealTypes();
   shopItems = loadShopList();
+  stores = loadStores();
+  storeTags = loadStoreTags();
   addCat = null;
   globalAddOpen = false;
   // If selected meal no longer exists, close editor; otherwise refresh it
@@ -1490,6 +1537,8 @@ function renderAll() {
   renderShopList();
   renderCatManager();
   renderMealTypeManager();
+  renderUserIngManager();
+  renderStoreManager();
 }
 
 function undo() {
@@ -1761,9 +1810,11 @@ function showRecipe(meal) {
   // Save & close helper
   function saveAndClose() {
     const idx = meals.findIndex(m=>m.id===meal.id);
-    if (idx >= 0) {
-      meal.notes = notesTA.value.trim();
-      meal.instructions = instrTA.value.trim();
+    const notes = notesTA.value.trim(), instructions = instrTA.value.trim();
+    // Only save if something was edited — just viewing a recipe shouldn't add an undo step
+    if (idx >= 0 && (notes !== (meal.notes||'') || instructions !== (meal.instructions||''))) {
+      meal.notes = notes;
+      meal.instructions = instructions;
       meals[idx] = meal;
       saveMeals(meals);
       // Sync editor if it's open for this meal
@@ -1853,7 +1904,7 @@ function renderMealList() {
   const list = document.getElementById('meal-list');
   const q = document.getElementById('meal-search').value.toLowerCase().trim();
   list.innerHTML = '';
-  const filtered = q ? meals.filter(m=>m.name.toLowerCase().includes(q)) : meals;
+  const filtered = q ? meals.filter(m=>(m.name||'').toLowerCase().includes(q)) : meals;
   if (!filtered.length) {
     const el=document.createElement('div'); el.className='empty-state';
     if (meals.length) {
@@ -2310,18 +2361,16 @@ function renderPlanner() {
       // Also save when user clears the field or blurs with a changed value
       ac.input.addEventListener('blur', () => {
         const val = ac.get().trim();
+        const saved = ((plan.plan||{})[String(day)]||{})[lbl] || null;
+        const id = val ? labelToId[val] : null;
+        // Invalid text — revert to current value
+        if (val && !id) { ac.set(saved ? (idToLabel[saved] || '') : ''); return; }
+        // Unchanged (e.g. just tapped in and out) — don't add an empty undo step
+        if (id === saved) return;
         if (!plan.plan) plan.plan={};
         if (!plan.plan[String(day)]) plan.plan[String(day)]={};
-        if (!val) {
-          plan.plan[String(day)][lbl] = null;
-          savePlan(plan);
-        } else if (labelToId[val]) {
-          plan.plan[String(day)][lbl] = labelToId[val];
-          savePlan(plan);
-        } else {
-          // Invalid text — revert to current value
-          ac.set(curId ? (idToLabel[curId] || '') : '');
-        }
+        plan.plan[String(day)][lbl] = id;
+        savePlan(plan);
       });
       tr.appendChild(td);
     }
@@ -2376,11 +2425,20 @@ function editLabels() {
   modal({
     title:'Planner Settings', extra:frag, okText:'Save',
     onOk:()=>{
-      const d = Math.max(1, parseInt(daysInp.value)||7);
+      const d = Math.max(1, Math.min(31, parseInt(daysInp.value)||7));
       const s = Math.max(1, Math.min(6, parseInt(slotsInp.value)||3));
+      const oldLabels = plan.slot_labels||['Breakfast','Lunch','Dinner'];
       plan.num_days = d;
       plan.slot_labels = inputs.map((inp,i)=>inp.value.trim()||'Meal '+(i+1));
       if (plan.slot_labels.length > s) plan.slot_labels.splice(s);
+      // Carry assignments over to renamed slots (plan entries are keyed by slot name)
+      const renamed = oldLabels.map((old,i)=>[old, plan.slot_labels[i]]).filter(([old,nu])=>nu && nu!==old);
+      for (const slots of Object.values(plan.plan||{})) {
+        if (!slots || typeof slots!=='object') continue;
+        const prev = {...slots};
+        for (const [old] of renamed) delete slots[old];
+        for (const [old,nu] of renamed) if (prev[old]) slots[nu] = prev[old];
+      }
       savePlan(plan); renderPlanner(); plannerStatus('Settings updated!');
     }
   });
@@ -2399,9 +2457,15 @@ function resetPlan() {
 ===================================================================== */
 function getPlannedIds() {
   const p = loadPlan();
+  const labels = p.slot_labels||['Breakfast','Lunch','Dinner'];
+  const numDays = p.num_days||7;
   const ids = [];
-  for (const slots of Object.values(p.plan||{}))
-    if (typeof slots==='object') for (const id of Object.values(slots)) if (id) ids.push(id);
+  // Only count slots the planner actually shows — assignments left behind after reducing the
+  // number of days/meals or renaming a slot are invisible and shouldn't end up on the list
+  for (let day=1; day<=numDays; day++) {
+    const slots = (p.plan||{})[String(day)];
+    if (slots && typeof slots==='object') for (const lbl of labels) if (slots[lbl]) ids.push(slots[lbl]);
+  }
   return ids;
 }
 
@@ -2450,7 +2514,8 @@ function doGenerateList(ids) {
         const ex=agg[key];
         const q1=parseQty(ex.quantity), q2=parseQty(ing.quantity);
         if (!isNaN(q1) && !isNaN(q2)) {
-          ex.quantity=String(q1+q2);
+          // Round so e.g. 1.1 + 2.2 shows as 3.3, not 3.3000000000000003
+          ex.quantity=String(Math.round((q1+q2)*100)/100);
         } else if (!isNaN(q2)) {
           ex.quantity=ing.quantity;
         } else {
@@ -2476,10 +2541,7 @@ function doGenerateList(ids) {
   shopStatus('Generated '+shopItems.length+' items from plan.');
 }
 
-function loadCatOrder() {
-  try { const r=localStorage.getItem(ORDER_KEY); if(r) return JSON.parse(r); } catch(e){}
-  return [...allCategories()];
-}
+function loadCatOrder() { return readJSON(ORDER_KEY, null, Array.isArray) || [...allCategories()]; }
 function saveCatOrder(o) { pushUndo(); localStorage.setItem(ORDER_KEY, JSON.stringify(o)); flushToIDB(); if (fileHandle) flushToFile(); }
 
 function ensureCatOrder() {
@@ -2526,7 +2588,7 @@ function moveCat(cat, dir) {
   ensureCatOrder();
   // Build the currently visible sorted list to find neighbors
   const groups={};
-  for (const item of shopItems) { const c=item.category||'Other'; if(!groups[c]) groups[c]=[]; groups[c].push(item); }
+  for (const item of visibleShopItems()) { const c=item.category||'Other'; if(!groups[c]) groups[c]=[]; groups[c].push(item); }
   const sorted = Object.keys(groups).sort((a,b)=>{
     const ai=shopCatOrder.indexOf(a), bi=shopCatOrder.indexOf(b);
     return (ai<0?999:ai)-(bi<0?999:bi);
@@ -2541,19 +2603,33 @@ function moveCat(cat, dir) {
 }
 
 function renderShopList() {
+  renderStoreBar();
   const wrap = document.getElementById('shop-wrap'); wrap.innerHTML='';
-  if (!shopItems.length && addCat===null) {
+  const visible = visibleShopItems();
+  const hidden = shopItems.length - visible.length;
+  if (hidden) {
+    const note=document.createElement('div'); note.className='store-hidden-note';
+    note.textContent = hidden + ' item' + (hidden===1?'':'s') + ' only at other stores.';
+    const all=document.createElement('button'); all.textContent='Show all';
+    all.addEventListener('click', ()=>setStoreFilter(''));
+    note.appendChild(all); wrap.appendChild(note);
+  }
+  if (!visible.length && addCat===null) {
     const el=document.createElement('div'); el.className='empty-state';
-    el.innerHTML=ICO.cart+'<div class="empty-state-title">Shopping list is empty</div><div class="empty-state-sub">Generate from your meal plan or add items manually.</div>';
+    el.innerHTML = ICO.cart + (shopItems.length
+      ? '<div class="empty-state-title"></div><div class="empty-state-sub">Everything left on the list is tagged for other stores.</div>'
+      : '<div class="empty-state-title">Shopping list is empty</div><div class="empty-state-sub">Generate from your meal plan or add items manually.</div>');
+    if (shopItems.length) el.querySelector('.empty-state-title').textContent = 'Nothing for ' + storeFilter;
     wrap.appendChild(el);
     appendGlobalAdd(wrap);
+    updateShopProgress();
     return;
   }
 
   // Group by category
   ensureCatOrder();
   const groups={};
-  for (const item of shopItems) { const c=item.category||'Other'; if(!groups[c]) groups[c]=[]; groups[c].push(item); }
+  for (const item of visible) { const c=item.category||'Other'; if(!groups[c]) groups[c]=[]; groups[c].push(item); }
   if (addCat && !groups[addCat]) groups[addCat]=[];
 
   const sorted = Object.keys(groups).sort((a,b)=>{
@@ -2636,12 +2712,13 @@ function uncheckAllShop() {
 
 function updateShopProgress() {
   const prog = document.getElementById('shop-progress');
-  if (!shopItems.length) { prog.style.display = 'none'; return; }
-  const checked = shopItems.filter(i=>i.checked).length;
-  const remaining = shopItems.length - checked;
-  const pct = Math.round((checked/shopItems.length)*100);
+  const items = visibleShopItems(); // progress for the store you're at
+  if (!items.length) { prog.style.display = 'none'; return; }
+  const checked = items.filter(i=>i.checked).length;
+  const remaining = items.length - checked;
+  const pct = Math.round((checked/items.length)*100);
   document.getElementById('shop-progress-fill').style.width = pct+'%';
-  document.getElementById('shop-progress-total').textContent = shopItems.length + ' item' + (shopItems.length===1?'':'s');
+  document.getElementById('shop-progress-total').textContent = items.length + ' item' + (items.length===1?'':'s');
   document.getElementById('shop-progress-remaining').textContent = remaining === 0 ? 'All done!' : remaining + ' remaining';
   prog.style.display = '';
 }
@@ -2699,7 +2776,7 @@ function appendGlobalAdd(wrap) {
 }
 
 function checkAutoHide(cat) {
-  const catItems=shopItems.filter(i=>(i.category||'Other')===cat);
+  const catItems=visibleShopItems().filter(i=>(i.category||'Other')===cat);
   if (catItems.length && catItems.every(i=>i.checked)) {
     if (!autoHiddenCats.has(cat)) {
       autoHiddenCats.add(cat);
@@ -2719,9 +2796,18 @@ function makeShopItem(item) {
   const name=document.createElement('span'); name.className='shop-name'+(item.checked?' checked':'');
   name.textContent=item.name;
 
+  // Name, plus the stores it's tagged for underneath
+  const nameWrap=document.createElement('span'); nameWrap.className='shop-name-wrap';
+  nameWrap.appendChild(name);
+  const tagged=storesFor(item);
+  if (tagged.length) {
+    const st=document.createElement('span'); st.className='shop-stores'; st.textContent=tagged.join(' · ');
+    nameWrap.appendChild(st);
+  }
+
   const toggle=()=>{ item.checked=cb.checked; name.classList.toggle('checked',item.checked); saveShopList(); updateShopProgress(); checkAutoHide(cat); };
   cb.addEventListener('change',toggle);
-  name.addEventListener('click',()=>{ cb.checked=!cb.checked; toggle(); });
+  nameWrap.addEventListener('click',()=>{ cb.checked=!cb.checked; toggle(); });
 
   const qty=document.createElement('input'); qty.type='text'; qty.className='shop-qty'; qty.placeholder='Qty';
   qty.value=item.quantity||'';
@@ -2731,11 +2817,202 @@ function makeShopItem(item) {
   unit.value=item.unit||'';
   unit.addEventListener('change',()=>{ item.unit=unit.value.trim(); saveShopList(); });
 
+  const storeBtn=document.createElement('button'); storeBtn.className='btn-store'+(tagged.length?' tagged':'');
+  storeBtn.innerHTML=ICO.tag; storeBtn.title='Which stores carry this';
+  storeBtn.addEventListener('click',()=>editItemStores(item));
+
   const rm=document.createElement('button'); rm.className='btn btn-danger btn-xs'; rm.innerHTML=ICO.x;
   rm.addEventListener('click',()=>{ shopItems=shopItems.filter(i=>i!==item); saveShopList(); renderShopList(); });
 
-  row.appendChild(cb); row.appendChild(name); row.appendChild(qty); row.appendChild(unit); row.appendChild(rm);
+  row.appendChild(cb); row.appendChild(nameWrap); row.appendChild(qty); row.appendChild(unit); row.appendChild(storeBtn); row.appendChild(rm);
   return row;
+}
+
+/* =====================================================================
+   STORES — tag shopping items with the stores that carry them
+===================================================================== */
+function loadStores()    { return readJSON(STORES_KEY, [], Array.isArray); }
+function loadStoreTags() { return readJSON(STORE_TAGS_KEY, {}, isObj); }
+function saveStores()    { persist(STORES_KEY, stores); }
+function saveStoreTags() { persist(STORE_TAGS_KEY, storeTags); }
+
+function storeKey(item)  { return (item.name||'').trim().toLowerCase(); }
+function storesFor(item) { return storeTags[storeKey(item)] || []; }
+
+// At a store, show what's tagged for it plus anything untagged (it can be bought anywhere).
+// Checked state is shared, so an item tagged for two stores that the first one didn't have
+// stays unchecked and shows up again at the second.
+function isShownAtStore(item) {
+  if (!storeFilter) return true;
+  const s = storesFor(item);
+  return !s.length || s.includes(storeFilter);
+}
+function visibleShopItems() { return shopItems.filter(isShownAtStore); }
+
+function setStoreFilter(name) {
+  storeFilter = name;
+  try { localStorage.setItem(STORE_FILTER_KEY, name); } catch(e){}
+  // Fresh view for the new store: collapse just the categories that are already done there
+  collapsedCats.clear(); autoHiddenCats.clear();
+  const visible = visibleShopItems();
+  for (const cat of new Set(visible.map(i=>i.category||'Other'))) {
+    if (visible.filter(i=>(i.category||'Other')===cat).every(i=>i.checked)) { collapsedCats.add(cat); autoHiddenCats.add(cat); }
+  }
+  renderShopList();
+}
+
+// Adds a store if it's new; returns its name (the existing spelling if it was already there)
+function addStore(name) {
+  name = (name||'').trim();
+  if (!name) return null;
+  const existing = stores.find(s => s.toLowerCase() === name.toLowerCase());
+  if (existing) return existing;
+  stores.push(name); saveStores();
+  return name;
+}
+
+function renameStore(oldName, newName) {
+  stores = stores.map(s => s === oldName ? newName : s);
+  for (const k in storeTags) storeTags[k] = storeTags[k].map(s => s === oldName ? newName : s);
+  saveStores(); saveStoreTags();
+  if (storeFilter === oldName) setStoreFilter(newName);
+}
+
+function removeStore(name) {
+  stores = stores.filter(s => s !== name);
+  for (const k in storeTags) {
+    storeTags[k] = storeTags[k].filter(s => s !== name);
+    if (!storeTags[k].length) delete storeTags[k];
+  }
+  saveStores(); saveStoreTags();
+  if (storeFilter === name) setStoreFilter('');
+}
+
+function renderStoreBar() {
+  const bar = document.getElementById('store-bar');
+  bar.innerHTML = '';
+  if (storeFilter && !stores.includes(storeFilter)) storeFilter = ''; // e.g. the store was removed by an undo
+  const label = document.createElement('span'); label.className = 'store-bar-label'; label.textContent = 'Shopping at';
+  bar.appendChild(label);
+  const chip = (text, active, onClick) => {
+    const b = document.createElement('button'); b.className = 'store-chip' + (active ? ' active' : '');
+    b.textContent = text; b.addEventListener('click', onClick); bar.appendChild(b); return b;
+  };
+  chip('All', !storeFilter, () => setStoreFilter(''));
+  for (const s of stores) chip(s, storeFilter === s, () => setStoreFilter(storeFilter === s ? '' : s));
+  chip('+ Store', false, promptNewStore).classList.add('add');
+}
+
+function promptNewStore() {
+  const inp = document.createElement('input'); inp.type = 'text'; inp.placeholder = 'e.g. Costco';
+  inp.style.cssText = 'width:100%;margin-top:6px;';
+  const ov = modal({
+    title: 'Add a Store', body: 'Then tap the tag button on an item to say which stores carry it.',
+    extra: inp, okText: 'Add',
+    onOk: () => { if (addStore(inp.value)) { renderShopList(); renderStoreManager(); } }
+  });
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') ov.querySelector('.modal-actions .btn-primary').click(); });
+  inp.focus(); // right away, inside the tap, so iOS opens the keyboard
+}
+
+// Pick which stores carry an item — any number of them
+function editItemStores(item) {
+  const chosen = new Set(storesFor(item));
+  const box = document.createElement('div');
+  const list = document.createElement('div'); box.appendChild(list);
+  function renderRows() {
+    list.innerHTML = '';
+    if (!stores.length) {
+      const e = document.createElement('div'); e.className = 'store-pick-empty'; e.textContent = 'No stores yet. Add one below.';
+      list.appendChild(e);
+    }
+    for (const s of stores) {
+      const row = document.createElement('label'); row.className = 'store-pick-row';
+      const cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = chosen.has(s);
+      cb.addEventListener('change', () => { if (cb.checked) chosen.add(s); else chosen.delete(s); });
+      const t = document.createElement('span'); t.textContent = s;
+      row.appendChild(cb); row.appendChild(t); list.appendChild(row);
+    }
+  }
+  renderRows();
+
+  const addRow = document.createElement('div'); addRow.className = 'store-pick-add';
+  const inp = document.createElement('input'); inp.type = 'text'; inp.placeholder = 'New store...';
+  const addBtn = document.createElement('button'); addBtn.type = 'button'; addBtn.className = 'btn btn-secondary btn-sm'; addBtn.textContent = 'Add';
+  const doAdd = () => {
+    const s = addStore(inp.value); if (!s) return;
+    chosen.add(s); inp.value = '';
+    renderRows(); renderStoreBar(); renderStoreManager();
+  };
+  addBtn.addEventListener('click', doAdd);
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); doAdd(); } });
+  addRow.appendChild(inp); addRow.appendChild(addBtn); box.appendChild(addRow);
+
+  const hint = document.createElement('div'); hint.className = 'store-pick-hint';
+  hint.textContent = 'Items with no store show up at every store.';
+  box.appendChild(hint);
+
+  modal({
+    title: 'Where to buy “' + item.name + '”', extra: box, okText: 'Save',
+    onOk: () => {
+      const key = storeKey(item);
+      const next = stores.filter(s => chosen.has(s)); // keep the stores' display order
+      if (next.length) storeTags[key] = next; else delete storeTags[key];
+      saveStoreTags();
+      renderShopList();
+    }
+  });
+}
+
+/* ---- Settings: Manage Stores ---- */
+let storeAcManager = null;
+
+function renderStoreManager() {
+  const wrap = document.getElementById('store-ac-wrap');
+  wrap.innerHTML = '';
+  storeAcManager = makeAC(wrap, {
+    suggestions: [...stores],
+    placeholder: stores.length ? stores.length + ' store' + (stores.length===1?'':'s') + '...' : 'No stores yet',
+    showAll: true
+  });
+}
+
+function addStoreFromSettings() {
+  const inp = document.getElementById('new-store-input');
+  if (addStore(inp.value)) { renderStoreManager(); renderShopList(); }
+  inp.value = '';
+}
+
+function editStoreName() {
+  if (!storeAcManager) return;
+  const name = storeAcManager.get().trim();
+  if (!name) return;
+  if (!stores.includes(name)) { toast('Select a store first.', true); return; }
+  const inp = document.createElement('input'); inp.type = 'text'; inp.value = name;
+  inp.style.cssText = 'width:100%;margin-top:6px;';
+  modal({
+    title: 'Rename Store', body: 'Enter a new name for "' + name + '":', extra: inp, okText: 'Rename',
+    onOk: () => {
+      const newName = inp.value.trim();
+      if (!newName || newName === name) return;
+      if (stores.some(s => s !== name && s.toLowerCase() === newName.toLowerCase())) { toast('That store already exists.', true); return; }
+      renameStore(name, newName);
+      renderStoreManager(); renderShopList();
+    }
+  });
+  setTimeout(() => { inp.focus(); inp.select(); }, 50);
+}
+
+function deleteStoreName() {
+  if (!storeAcManager) return;
+  const name = storeAcManager.get().trim();
+  if (!name) return;
+  if (!stores.includes(name)) { toast('Select a store first.', true); return; }
+  modal({
+    title: 'Remove Store?', body: '"' + name + '" will be removed and untagged from every item.',
+    okText: 'Remove', okClass: 'btn-danger',
+    onOk: () => { removeStore(name); renderStoreManager(); renderShopList(); }
+  });
 }
 
 /* =====================================================================
@@ -2744,15 +3021,15 @@ function makeShopItem(item) {
 function sortedCatGroups() {
   ensureCatOrder();
   const groups={};
-  for (const item of shopItems) { const c=item.category||'Other'; if(!groups[c]) groups[c]=[]; groups[c].push(item); }
+  for (const item of visibleShopItems()) { const c=item.category||'Other'; if(!groups[c]) groups[c]=[]; groups[c].push(item); }
   const sorted=Object.keys(groups).sort((a,b)=>{ const ai=shopCatOrder.indexOf(a),bi=shopCatOrder.indexOf(b); return (ai<0?999:ai)-(bi<0?999:bi); });
   return { groups, sorted };
 }
 
 function fmtText() {
-  if (!shopItems.length) return 'Shopping list is empty.';
+  if (!visibleShopItems().length) return 'Shopping list is empty.';
   const {groups,sorted}=sortedCatGroups();
-  const lines=['SHOPPING LIST','='.repeat(30),''];
+  const lines=['SHOPPING LIST'+(storeFilter?' — '+storeFilter:''),'='.repeat(30),''];
   for (const cat of sorted) {
     lines.push('--- '+cat+' ---');
     for (const item of [...groups[cat]].sort((a,b)=>a.name.localeCompare(b.name))) {
@@ -2766,7 +3043,7 @@ function fmtText() {
 }
 
 function copyList() {
-  if (!shopItems.length) { shopStatus('Nothing to copy.',true); return; }
+  if (!visibleShopItems().length) { shopStatus('Nothing to copy.',true); return; }
   const text=fmtText();
   (navigator.clipboard ? navigator.clipboard.writeText(text) : Promise.reject())
     .then(()=>shopStatus('Copied to clipboard!'))
@@ -3080,17 +3357,7 @@ function addMealType() {
 }
 
 function exportData() {
-  const data = {
-    version: 1,
-    exported: new Date().toISOString(),
-    meals:    JSON.parse(localStorage.getItem(MEALS_KEY)  || '{"meals":[]}'),
-    plan:     JSON.parse(localStorage.getItem(PLAN_KEY)   || '{}'),
-    catOrder:  JSON.parse(localStorage.getItem(ORDER_KEY)    || '[]'),
-    userCats:  JSON.parse(localStorage.getItem(USER_CATS_KEY) || 'null'),
-    shopList:  JSON.parse(localStorage.getItem(SHOP_KEY) || '[]'),
-    mealTypes: JSON.parse(localStorage.getItem(MEAL_TYPES_KEY) || 'null'),
-  };
-  const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+  const blob = new Blob([buildStateJSON()], {type:'application/json'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = 'meal-planner-data.json';
@@ -3113,30 +3380,11 @@ function importData() {
           body: 'This will replace all current meals, plan, and category order with the imported data.',
           okText: 'Import', okClass: 'btn-primary',
           onOk: () => {
-            if (data.meals)    localStorage.setItem(MEALS_KEY,  JSON.stringify(data.meals));
-            if (data.plan)     localStorage.setItem(PLAN_KEY,   JSON.stringify(data.plan));
-            if (data.catOrder)   localStorage.setItem(ORDER_KEY,       JSON.stringify(data.catOrder));
-            if (data.userCats != null) localStorage.setItem(USER_CATS_KEY, JSON.stringify(data.userCats));
-            if (data.mealTypes != null) localStorage.setItem(MEAL_TYPES_KEY, JSON.stringify(data.mealTypes));
-            if (data.userIngs) localStorage.setItem(USER_INGS_KEY, JSON.stringify(data.userIngs));
-            // Reload state
-            meals = loadMeals();
-            plan  = loadPlan();
-            shopCatOrder = loadCatOrder();
-            userCats = loadUserCats();
-            userMealTypes = loadMealTypes();
-            renderCatManager();
-            renderMealTypeManager();
-            if (data.shopList) { localStorage.setItem(SHOP_KEY, JSON.stringify(data.shopList)); shopItems = data.shopList; } else { shopItems = loadShopList(); }
-            saveShopList();
-            addCat = null; globalAddOpen = false;
+            applyState(data);
+            renderAll(); // reloads everything from storage
             for (const t in tabUndoStacks) { tabUndoStacks[t]=[]; tabRedoStacks[t]=[]; }
             updateUndoRedoBtns();
-            renderMealList();
-            renderShopList();
-            // Refresh planner if active
-            if (!document.getElementById('tab-planner').classList.contains('hidden')) renderPlanner();
-            flushToIDB();
+            flushToIDB(); if (fileHandle) flushToFile();
             const mealCount = (data.meals?.meals || data.meals || []).length;
             alert('Import successful! ' + mealCount + ' meals loaded.');
           }
@@ -3154,24 +3402,22 @@ async function checkForUpdate() {
   const btn = document.getElementById('btn-check-update');
   if (btn) btn.textContent = 'Checking...';
   try {
-    if ('serviceWorker' in navigator) {
-      const reg = await navigator.serviceWorker.getRegistration();
-      if (reg) {
-        await reg.update();
-        if (reg.waiting) {
-          reg.waiting.postMessage({ type: 'SKIP_WAITING' });
-        }
-      }
+    // Never clear the offline cache here: if the network is flaky, the cached copy is the only
+    // thing that lets the app open. reg.update() re-downloads sw.js, so it doubles as a
+    // connectivity check, and the reload below fetches the newest page when online.
+    const reg = 'serviceWorker' in navigator ? await navigator.serviceWorker.getRegistration() : null;
+    if (reg) {
+      await Promise.race([
+        reg.update(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('timed out')), 10000)),
+      ]);
     }
-    // Also clear the cache so the next load fetches fresh files
-    const keys = await caches.keys();
-    await Promise.all(keys.map(k => caches.delete(k)));
     if (btn) btn.textContent = 'Reloading...';
     location.reload();
   } catch (e) {
     console.warn('Update check failed:', e);
     if (btn) btn.textContent = 'Check for Update';
-    alert('Update check failed. Try closing and reopening the app.');
+    toast('Couldn’t reach the server. Try again when you have a better connection.', true);
   }
 }
 
@@ -3678,12 +3924,15 @@ function showGenerationResults(results, ov, panel) {
     const ingCount = recipe.ingredients.length;
     const notesPreview = recipe.notes ? recipe.notes.substring(0, 80) + (recipe.notes.length > 80 ? '...' : '') : '';
     card.innerHTML = `
-      <div class="ai-gen-card-name">${recipe.name || 'Untitled Recipe'}</div>
-      <div class="ai-gen-card-meta">${ingCount} ingredient${ingCount !== 1 ? 's' : ''}${notesPreview ? ' — ' + notesPreview : ''}</div>
+      <div class="ai-gen-card-name"></div>
+      <div class="ai-gen-card-meta"></div>
       <div class="ai-gen-card-actions">
         <button class="btn btn-secondary btn-sm ai-gen-preview">Preview</button>
         <button class="btn btn-primary btn-sm ai-gen-add">Add to Meals</button>
       </div>`;
+    // AI output is set as text, never HTML, so it can't inject script (the API key lives in localStorage)
+    card.querySelector('.ai-gen-card-name').textContent = recipe.name || 'Untitled Recipe';
+    card.querySelector('.ai-gen-card-meta').textContent = `${ingCount} ingredient${ingCount !== 1 ? 's' : ''}${notesPreview ? ' — ' + notesPreview : ''}`;
     card.querySelector('.ai-gen-preview').addEventListener('click', () => showRecipe(recipe));
     card.querySelector('.ai-gen-add').addEventListener('click', () => {
       absorbNewCats(recipe);
@@ -3721,6 +3970,8 @@ function init() {
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js').catch(() => {});
   }
+  // Ask the browser not to evict our offline copy and saved data when the device is low on space
+  if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
 
   // Warn before closing tab/browser with unsaved editor changes
   window.addEventListener('beforeunload', e => {
@@ -3808,6 +4059,16 @@ function init() {
   // Custom ingredients
   document.getElementById('btn-del-user-ing').addEventListener('click', deleteUserIng);
   renderUserIngManager();
+
+  // Stores
+  stores = loadStores();
+  storeTags = loadStoreTags();
+  try { storeFilter = localStorage.getItem(STORE_FILTER_KEY) || ''; } catch(e){}
+  document.getElementById('btn-add-store').addEventListener('click', addStoreFromSettings);
+  document.getElementById('new-store-input').addEventListener('keydown', e=>{ if(e.key==='Enter') addStoreFromSettings(); });
+  document.getElementById('btn-edit-store').addEventListener('click', editStoreName);
+  document.getElementById('btn-del-store').addEventListener('click', deleteStoreName);
+  renderStoreManager();
 
   // AI Recipe Parser
   document.getElementById('btn-save-ai-key').addEventListener('click', handleSaveKey);
