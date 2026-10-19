@@ -338,8 +338,18 @@
     }
     .shop-name { flex: 1; font-size: 13px; cursor: pointer; user-select: none; line-height: 24px; }
     .shop-name.checked { color: var(--text-muted); text-decoration: line-through; }
-    .shop-qty { max-width: 70px; padding: 0 6px; font-size: 12px; height: 24px; box-sizing: border-box; }
-    .shop-unit { max-width: 70px; padding: 0 6px; font-size: 12px; height: 24px; box-sizing: border-box; }
+    /* Amount shown as text; tap it to edit (keeps rows narrow so nothing gets cut off) */
+    .shop-amt {
+      flex-shrink: 0; max-width: 45%; text-align: right; font-size: 13px; font-family: inherit;
+      color: var(--text-light); background: none; border: none; border-bottom: 1px dashed var(--border);
+      padding: 2px 0; cursor: pointer; overflow-wrap: anywhere;
+    }
+    .shop-amt.empty { color: var(--text-muted); }
+    .shop-item.editing { flex-wrap: wrap; }
+    .shop-edit { flex-basis: 100%; display: flex; align-items: center; gap: 6px; padding: 8px 0 2px 22px; }
+    .shop-edit input[type="text"] { height: 32px; padding: 4px 8px; }
+    .shop-edit .shop-edit-qty { flex: 0 0 64px; }
+    .shop-edit .shop-edit-unit { flex: 1 1 80px; min-width: 0; }
     .shopping-wrap .btn-xs { height: 24px; min-height: 24px; padding: 0 8px; font-size: 12px; line-height: 24px; }
     .inline-add {
       display: flex; align-items: center; gap: 6px;
@@ -465,8 +475,7 @@
       .btn-xs { min-height: 32px; padding: 6px 10px; }
       .shop-item { padding: 10px 12px; }
       .shop-item input[type="checkbox"] { width: 22px; height: 22px; min-width: 22px; }
-      .shop-qty { max-width: 48px; }
-      .shop-unit { max-width: 64px; }
+      .shop-edit { padding-left: 30px; }
       .btn-store { height: 32px; padding: 0 8px; }
       .store-bar { padding: 8px 10px; }
       .meal-list-item { padding: 12px 14px; }
@@ -2595,7 +2604,10 @@ function moveCat(cat, dir) {
   renderShopList();
 }
 
+let closeOpenShopEditor = null; // closes whichever item's amount editor is open
+
 function renderShopList() {
+  closeOpenShopEditor = null; // the rows (and any open editor) are rebuilt below
   renderStoreBar();
   const wrap = document.getElementById('shop-wrap'); wrap.innerHTML='';
   const visible = visibleShopItems();
@@ -2804,22 +2816,53 @@ function makeShopItem(item) {
   cb.addEventListener('change',toggle);
   nameWrap.addEventListener('click',()=>{ cb.checked=!cb.checked; toggle(); });
 
-  const qty=document.createElement('input'); qty.type='text'; qty.className='shop-qty'; qty.placeholder='Qty';
-  qty.value=item.quantity||'';
-  qty.addEventListener('change',()=>{ item.quantity=qty.value.trim(); saveShopList(); });
+  // Amount as plain text (only as wide as it needs); tap it to edit the amount or remove the item
+  const amt=document.createElement('button'); amt.type='button'; amt.className='shop-amt';
+  const showAmt=()=>{
+    const text=[item.quantity,item.unit].filter(Boolean).join(' ');
+    amt.textContent=text||'+ amount'; amt.classList.toggle('empty',!text);
+    amt.title='Edit amount for '+item.name;
+  };
+  showAmt();
 
-  const unit=document.createElement('input'); unit.type='text'; unit.className='shop-unit'; unit.placeholder='Unit';
-  unit.value=item.unit||'';
-  unit.addEventListener('change',()=>{ item.unit=unit.value.trim(); saveShopList(); });
+  let editor=null;
+  const closeAmt=()=>{
+    if (!editor) return;
+    editor.remove(); editor=null; row.classList.remove('editing');
+    if (closeOpenShopEditor===closeAmt) closeOpenShopEditor=null;
+  };
+  const openAmt=()=>{
+    if (closeOpenShopEditor) closeOpenShopEditor(); // one editor open at a time
+    editor=document.createElement('div'); editor.className='shop-edit';
+    const qty=document.createElement('input'); qty.type='text'; qty.className='shop-edit-qty'; qty.placeholder='Qty';
+    qty.value=item.quantity||'';
+    const unit=document.createElement('input'); unit.type='text'; unit.className='shop-edit-unit'; unit.placeholder='Unit';
+    unit.value=item.unit||'';
+    const commit=()=>{
+      const q=qty.value.trim(), u=unit.value.trim();
+      if (q===(item.quantity||'') && u===(item.unit||'')) return;
+      item.quantity=q; item.unit=u; saveShopList(); showAmt();
+    };
+    for (const inp of [qty,unit]) {
+      inp.addEventListener('change',commit);
+      inp.addEventListener('keydown',e=>{ if (e.key==='Enter') { commit(); closeAmt(); } });
+    }
+    const rm=document.createElement('button'); rm.type='button'; rm.className='btn btn-danger btn-xs'; rm.textContent='Remove';
+    rm.addEventListener('click',()=>{ shopItems=shopItems.filter(i=>i!==item); closeOpenShopEditor=null; saveShopList(); renderShopList(); });
+    const done=document.createElement('button'); done.type='button'; done.className='btn btn-secondary btn-xs'; done.textContent='Done';
+    done.addEventListener('click',()=>{ commit(); closeAmt(); });
+    editor.append(qty,unit,rm,done);
+    row.classList.add('editing'); row.appendChild(editor);
+    closeOpenShopEditor=closeAmt;
+    qty.focus(); // inside the tap, so iOS opens the keyboard
+  };
+  amt.addEventListener('click',()=>editor?closeAmt():openAmt());
 
   const storeBtn=document.createElement('button'); storeBtn.className='btn-store'+(tagged.length?' tagged':'');
   storeBtn.innerHTML=ICO.tag; storeBtn.title='Which stores carry this';
   storeBtn.addEventListener('click',()=>editItemStores(item));
 
-  const rm=document.createElement('button'); rm.className='btn btn-danger btn-xs'; rm.innerHTML=ICO.x;
-  rm.addEventListener('click',()=>{ shopItems=shopItems.filter(i=>i!==item); saveShopList(); renderShopList(); });
-
-  row.appendChild(cb); row.appendChild(nameWrap); row.appendChild(qty); row.appendChild(unit); row.appendChild(storeBtn); row.appendChild(rm);
+  row.append(cb, nameWrap, amt, storeBtn);
   return row;
 }
 
